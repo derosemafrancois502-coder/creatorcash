@@ -1,43 +1,15 @@
-// components/dashboard/MobileSidebarDrawer.tsx
 "use client"
 
-import Link from "next/link"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
 
-type NavItem = {
-  name: string
-  href: string
-  requiresFounder?: boolean
-  alwaysFree?: boolean
-  blockedWhenFree?: boolean
-}
-
-type ProfileRow = {
-  plan?: string | null
-  trial_expires_at?: string | null
-  subscription_expires_at?: string | null
-}
-
 type MobileSidebarDrawerProps = {
-  navItems: NavItem[]
-  profile: ProfileRow | null
-  userEmail?: string | null
-  renderSidebarContent: (args: {
-    navItems: NavItem[]
-    profile: ProfileRow | null
-    userEmail?: string | null
-    mobile?: boolean
-    onNavigate?: () => void
-  }) => React.ReactNode
+  children: React.ReactNode
 }
 
 export default function MobileSidebarDrawer({
-  navItems,
-  profile,
-  userEmail,
-  renderSidebarContent,
+  children,
 }: MobileSidebarDrawerProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -87,13 +59,7 @@ export default function MobileSidebarDrawer({
               </button>
             </div>
 
-            {renderSidebarContent({
-              navItems,
-              profile,
-              userEmail,
-              mobile: true,
-              onNavigate: () => setOpen(false),
-            })}
+            {children}
           </div>
         </div>
       ) : null}

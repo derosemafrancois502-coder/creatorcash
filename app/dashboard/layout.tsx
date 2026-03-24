@@ -215,12 +215,13 @@ function MobileDashboardShell({
               </p>
             </div>
 
-            <MobileSidebarDrawer
-              navItems={navItems}
-              profile={profile}
-              userEmail={userEmail}
-              renderSidebarContent={SidebarContent}
-            />
+            <MobileSidebarDrawer>
+              <SidebarContent
+                navItems={navItems}
+                profile={profile}
+                userEmail={userEmail}
+              />
+            </MobileSidebarDrawer>
           </div>
         </header>
 
