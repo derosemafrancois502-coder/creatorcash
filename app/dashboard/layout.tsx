@@ -87,11 +87,11 @@ function SidebarContent({
     ? "text-xs uppercase tracking-[0.25em] text-zinc-500"
     : "text-xs uppercase tracking-[0.25em] text-yellow-500/60"
 
-  const emailClass = mobile
-    ? "mt-2 break-all text-xs text-zinc-500"
-    : "mt-2 break-all text-xs text-zinc-500"
+  const emailClass = "mt-2 break-all text-xs text-zinc-500"
 
-  const navClass = mobile ? "flex flex-col gap-1.5 pb-6" : "flex flex-col gap-2 pb-6"
+  const navClass = mobile
+    ? "flex flex-col gap-1.5 pb-6"
+    : "flex flex-col gap-2 pb-6"
 
   const lockedLinkClass = mobile
     ? "block w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium leading-6 text-black transition hover:bg-zinc-100"
@@ -105,9 +105,7 @@ function SidebarContent({
     ? "rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
     : "rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4"
 
-  const smallLabelClass = mobile
-    ? "text-xs uppercase tracking-[0.2em] text-zinc-500"
-    : "text-xs uppercase tracking-[0.2em] text-zinc-500"
+  const smallLabelClass = "text-xs uppercase tracking-[0.2em] text-zinc-500"
 
   const planTextClass = mobile
     ? "mt-2 text-lg font-bold text-black"
@@ -117,9 +115,7 @@ function SidebarContent({
     ? "mt-1 text-sm text-zinc-600"
     : "mt-1 text-sm text-zinc-400"
 
-  const statusTextClass = mobile
-    ? "mt-2 text-xs leading-5 text-zinc-500"
-    : "mt-2 text-xs leading-5 text-zinc-500"
+  const statusTextClass = "mt-2 text-xs leading-5 text-zinc-500"
 
   const primaryButtonClass = mobile
     ? "mt-4 block rounded-2xl bg-black px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90"
@@ -191,7 +187,13 @@ function SidebarContent({
                   Trial expired — Upgrade Now
                 </p>
               ) : (
-                <p className={mobile ? "mt-2 text-sm font-semibold text-black" : "mt-2 text-sm font-semibold text-yellow-400"}>
+                <p
+                  className={
+                    mobile
+                      ? "mt-2 text-sm font-semibold text-black"
+                      : "mt-2 text-sm font-semibold text-yellow-400"
+                  }
+                >
                   {trial.remainingMinutes}:
                   {trial.remainingSeconds.toString().padStart(2, "0")} left
                 </p>
@@ -201,7 +203,13 @@ function SidebarContent({
                 Plan expired — Renew Now
               </p>
             ) : (
-              <p className={mobile ? "mt-2 text-sm font-semibold text-black" : "mt-2 text-sm font-semibold text-yellow-400"}>
+              <p
+                className={
+                  mobile
+                    ? "mt-2 text-sm font-semibold text-black"
+                    : "mt-2 text-sm font-semibold text-yellow-400"
+                }
+              >
                 Paid access active
               </p>
             )}
