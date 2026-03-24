@@ -3,13 +3,13 @@ import { redirect } from "next/navigation"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import LogoutButton from "@/components/auth/LogoutButton"
+import MobileSidebarDrawer from "@/components/dashboard/MobileSidebarDrawer"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import {
   checkModuleAccess,
   getPlanDisplay,
   getTrialCountdown,
 } from "@/lib/access/guard"
-import { Menu, X } from "lucide-react"
 
 type NavItem = {
   name: string
@@ -57,18 +57,20 @@ type ProfileRow = {
   subscription_expires_at?: string | null
 }
 
-type MobileSidebarProps = {
+type SidebarContentProps = {
   navItems: NavItem[]
   profile: ProfileRow | null
   userEmail?: string | null
+  mobile?: boolean
+  onNavigate?: () => void
 }
 
 function SidebarContent({
   navItems,
   profile,
   userEmail,
-  mobile = false,
-}: MobileSidebarProps & { mobile?: boolean }) {
+  onNavigate,
+}: SidebarContentProps) {
   const sidebarAccess = checkModuleAccess(profile || {}, {})
   const trial = getTrialCountdown(profile?.trial_expires_at || null)
 
@@ -99,6 +101,7 @@ function SidebarContent({
                 <Link
                   key={item.name}
                   href="/dashboard/billing"
+                  onClick={onNavigate}
                   className="rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
                 >
                   {item.name} 🔒
@@ -110,6 +113,7 @@ function SidebarContent({
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onNavigate}
                 className="rounded-xl px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
               >
                 {item.name}
@@ -168,6 +172,7 @@ function SidebarContent({
 
             <Link
               href="/dashboard/billing"
+              onClick={onNavigate}
               className="mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
             >
               Upgrade Now
@@ -210,21 +215,12 @@ function MobileDashboardShell({
               </p>
             </div>
 
-            <details className="group relative">
-              <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-yellow-500/20 bg-zinc-950 text-yellow-400 marker:content-none">
-                <Menu className="h-5 w-5 group-open:hidden" />
-                <X className="hidden h-5 w-5 group-open:block" />
-              </summary>
-
-              <div className="absolute right-0 top-14 z-50 w-[88vw] max-w-sm rounded-2xl border border-yellow-500/20 bg-black p-4 shadow-2xl">
-                <SidebarContent
-                  navItems={navItems}
-                  profile={profile}
-                  userEmail={userEmail}
-                  mobile
-                />
-              </div>
-            </details>
+            <MobileSidebarDrawer
+              navItems={navItems}
+              profile={profile}
+              userEmail={userEmail}
+              renderSidebarContent={SidebarContent}
+            />
           </div>
         </header>
 
