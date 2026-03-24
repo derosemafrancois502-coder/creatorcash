@@ -62,6 +62,7 @@ type SidebarContentProps = {
   profile: ProfileRow | null
   userEmail?: string | null
   onNavigate?: () => void
+  mobile?: boolean
 }
 
 function SidebarContent({
@@ -69,25 +70,72 @@ function SidebarContent({
   profile,
   userEmail,
   onNavigate,
+  mobile = false,
 }: SidebarContentProps) {
   const sidebarAccess = checkModuleAccess(profile || {}, {})
   const trial = getTrialCountdown(profile?.trial_expires_at || null)
 
+  const wrapperClass = mobile
+    ? "flex h-full flex-col justify-between text-black"
+    : "flex h-full flex-col justify-between"
+
+  const titleClass = mobile
+    ? "mb-6 text-2xl font-bold tracking-tight text-black"
+    : "mb-8 text-3xl font-bold tracking-tight text-yellow-400"
+
+  const osLabelClass = mobile
+    ? "text-xs uppercase tracking-[0.25em] text-zinc-500"
+    : "text-xs uppercase tracking-[0.25em] text-yellow-500/60"
+
+  const emailClass = mobile
+    ? "mt-2 break-all text-xs text-zinc-500"
+    : "mt-2 break-all text-xs text-zinc-500"
+
+  const navClass = mobile ? "flex flex-col gap-1.5 pb-6" : "flex flex-col gap-2 pb-6"
+
+  const lockedLinkClass = mobile
+    ? "block w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium leading-6 text-black transition hover:bg-zinc-100"
+    : "block w-full rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+
+  const linkClass = mobile
+    ? "block w-full rounded-2xl px-4 py-3 text-sm font-medium leading-6 text-black transition hover:bg-zinc-100"
+    : "block w-full rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+
+  const cardClass = mobile
+    ? "rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+    : "rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4"
+
+  const smallLabelClass = mobile
+    ? "text-xs uppercase tracking-[0.2em] text-zinc-500"
+    : "text-xs uppercase tracking-[0.2em] text-zinc-500"
+
+  const planTextClass = mobile
+    ? "mt-2 text-lg font-bold text-black"
+    : "mt-2 text-lg font-bold text-yellow-400"
+
+  const secondaryTextClass = mobile
+    ? "mt-1 text-sm text-zinc-600"
+    : "mt-1 text-sm text-zinc-400"
+
+  const statusTextClass = mobile
+    ? "mt-2 text-xs leading-5 text-zinc-500"
+    : "mt-2 text-xs leading-5 text-zinc-500"
+
+  const primaryButtonClass = mobile
+    ? "mt-4 block rounded-2xl bg-black px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90"
+    : "mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
+
   return (
-    <div className="flex h-full flex-col justify-between">
+    <div className={wrapperClass}>
       <div>
-        <h1 className="mb-8 text-3xl font-bold tracking-tight text-yellow-400">
-          CreatorGoat
-        </h1>
+        <h1 className={titleClass}>CreatorGoat</h1>
 
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/60">
-            Creator OS
-          </p>
-          <p className="mt-2 break-all text-xs text-zinc-500">{userEmail}</p>
+          <p className={osLabelClass}>Creator OS</p>
+          <p className={emailClass}>{userEmail}</p>
         </div>
 
-        <nav className="flex flex-col gap-2 pb-6">
+        <nav className={navClass}>
           {navItems.map((item) => {
             const itemAccess = checkModuleAccess(profile || {}, {
               alwaysFree: item.alwaysFree,
@@ -101,7 +149,7 @@ function SidebarContent({
                   key={item.name}
                   href="/dashboard/billing"
                   onClick={onNavigate}
-                  className="block w-full rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                  className={lockedLinkClass}
                 >
                   {item.name} 🔒
                 </Link>
@@ -113,7 +161,7 @@ function SidebarContent({
                 key={item.name}
                 href={item.href}
                 onClick={onNavigate}
-                className="block w-full rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                className={linkClass}
               >
                 {item.name}
               </Link>
@@ -123,14 +171,10 @@ function SidebarContent({
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Active Plan
-          </p>
-          <p className="mt-2 text-lg font-bold text-yellow-400">
-            {getPlanDisplay(profile?.plan)}
-          </p>
-          <p className="mt-1 text-sm text-zinc-400">
+        <div className={cardClass}>
+          <p className={smallLabelClass}>Active Plan</p>
+          <p className={planTextClass}>{getPlanDisplay(profile?.plan)}</p>
+          <p className={secondaryTextClass}>
             {sidebarAccess.founderAccess
               ? "Full creator system active"
               : "Upgrade for premium tools"}
@@ -138,33 +182,31 @@ function SidebarContent({
         </div>
 
         {!sidebarAccess.founderAccess && (
-          <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              Access Status
-            </p>
+          <div className={cardClass}>
+            <p className={smallLabelClass}>Access Status</p>
 
             {sidebarAccess.normalizedPlan === "free" ? (
               trial.expired ? (
-                <p className="mt-2 text-sm font-semibold text-red-400">
+                <p className="mt-2 text-sm font-semibold text-red-500">
                   Trial expired — Upgrade Now
                 </p>
               ) : (
-                <p className="mt-2 text-sm font-semibold text-yellow-400">
+                <p className={mobile ? "mt-2 text-sm font-semibold text-black" : "mt-2 text-sm font-semibold text-yellow-400"}>
                   {trial.remainingMinutes}:
                   {trial.remainingSeconds.toString().padStart(2, "0")} left
                 </p>
               )
             ) : sidebarAccess.subscriptionExpired ? (
-              <p className="mt-2 text-sm font-semibold text-red-400">
+              <p className="mt-2 text-sm font-semibold text-red-500">
                 Plan expired — Renew Now
               </p>
             ) : (
-              <p className="mt-2 text-sm font-semibold text-yellow-400">
+              <p className={mobile ? "mt-2 text-sm font-semibold text-black" : "mt-2 text-sm font-semibold text-yellow-400"}>
                 Paid access active
               </p>
             )}
 
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
+            <p className={statusTextClass}>
               After free trial or subscription expiration, only Marketplace browse,
               Calendar, Translate, and Billing stay open.
             </p>
@@ -172,7 +214,7 @@ function SidebarContent({
             <Link
               href="/dashboard/billing"
               onClick={onNavigate}
-              className="mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
+              className={primaryButtonClass}
             >
               Upgrade Now
             </Link>
@@ -223,6 +265,7 @@ function MobileDashboardShell({
                 navItems={navItems}
                 profile={profile}
                 userEmail={userEmail}
+                mobile
               />
             </MobileSidebarDrawer>
           </div>
