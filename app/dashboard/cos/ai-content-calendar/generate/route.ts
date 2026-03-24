@@ -1,4 +1,3 @@
-// app/api/ai-content-calendar/route.ts
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
@@ -27,12 +26,27 @@ export async function POST(req: Request) {
         : ""
     const language =
       typeof body?.language === "string" ? body.language.trim() : "English"
+    const mode = body?.mode === "30-day" ? "30-day" : "7-day"
 
     if (!niche || !platform || !goal || !postingFrequency || !contentStyle) {
       return NextResponse.json(
         { error: "Missing required fields." },
         { status: 400 }
       )
+    }
+
+    const daysCount = mode === "30-day" ? 30 : 7
+
+    let dayBlocks = ""
+    for (let i = 1; i <= daysCount; i++) {
+      dayBlocks += `
+DAY ${i}:
+Topic:
+Hook:
+Content Idea:
+Caption Angle:
+CTA:
+`
     }
 
     const prompt = `
@@ -45,63 +59,16 @@ Inputs:
 - Posting Frequency: ${postingFrequency}
 - Content Style: ${contentStyle}
 - Language: ${language}
+- Mode: ${mode}
 
-Your job:
-Create a premium 7-day content calendar for a creator.
+Create a premium ${daysCount}-day content calendar.
 
 Return the output in this exact structure:
 
 WEEKLY STRATEGY:
-- A short strategy summary for the week
+- A short strategy summary
 
-DAY 1:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 2:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 3:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 4:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 5:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 6:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
-
-DAY 7:
-Topic:
-Hook:
-Content Idea:
-Caption Angle:
-CTA:
+${dayBlocks}
 
 BONUS CONTENT IDEAS:
 - 5 extra ideas
@@ -109,21 +76,22 @@ BONUS CONTENT IDEAS:
 BEST POSTING DIRECTION:
 - A short final recommendation
 
-Important:
-- Be practical
+Rules:
 - Be specific
-- Make the content ideas different from each other
+- Make each day different
 - Match the platform and goal
+- Keep hooks strong
+- Keep content ideas practical
 - Write everything in ${language}
 `
 
     const response = await client.responses.create({
-      model: "gpt-5.4",
+      model: "gpt-5-mini",
       input: [
         {
           role: "system",
           content:
-            "You are a premium creator strategist that builds high-converting weekly content calendars.",
+            "You are a premium creator strategist that builds high-converting structured content calendars.",
         },
         {
           role: "user",

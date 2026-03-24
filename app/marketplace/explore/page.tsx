@@ -1,7 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
+import {
+  ChangeEvent,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -73,6 +80,14 @@ const categoryPills = [
 ]
 
 export default function MarketplaceExplorePage() {
+  return (
+    <Suspense fallback={<MarketplaceExploreFallback />}>
+      <MarketplaceExploreContent />
+    </Suspense>
+  )
+}
+
+function MarketplaceExploreContent() {
   const supabase = useMemo(() => createClient(), [])
   const searchParams = useSearchParams()
 
@@ -695,6 +710,22 @@ export default function MarketplaceExplorePage() {
           )}
         </div>
       </section>
+    </div>
+  )
+}
+
+function MarketplaceExploreFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white px-6">
+      <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-full bg-zinc-200" />
+        <h2 className="text-lg font-semibold text-zinc-900">
+          Loading marketplace...
+        </h2>
+        <p className="mt-2 text-sm text-zinc-600">
+          Preparing premium product discovery.
+        </p>
+      </div>
     </div>
   )
 }

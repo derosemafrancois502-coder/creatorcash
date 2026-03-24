@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { clearCart } from "@/lib/cart"
@@ -21,6 +21,14 @@ type OrderSummary = {
 }
 
 export default function SuccessPage() {
+  return (
+    <Suspense fallback={<SuccessPageFallback />}>
+      <SuccessPageContent />
+    </Suspense>
+  )
+}
+
+function SuccessPageContent() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
 
@@ -194,6 +202,34 @@ export default function SuccessPage() {
               <ShoppingBag className="h-4 w-4" />
               Keep Shopping
             </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SuccessPageFallback() {
+  return (
+    <div className="min-h-screen bg-white px-5 py-10 text-zinc-900 md:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm md:p-10">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" />
+            Payment Successful
+          </div>
+
+          <h1 className="text-3xl font-semibold text-zinc-950 md:text-5xl">
+            Order Confirmed
+          </h1>
+
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-500 md:text-base">
+            Your payment was completed successfully. Your order has been received
+            and your checkout flow is complete.
+          </p>
+
+          <div className="mt-8 rounded-[1.5rem] border border-zinc-200 bg-zinc-50 p-6 text-zinc-500">
+            Loading order summary...
           </div>
         </div>
       </div>

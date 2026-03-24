@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -49,6 +49,14 @@ const progressOrder: ShipmentStatus[] = [
 ]
 
 export default function OrderTrackingPage() {
+  return (
+    <Suspense fallback={<OrderTrackingFallback />}>
+      <OrderTrackingContent />
+    </Suspense>
+  )
+}
+
+function OrderTrackingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => createClient(), [])
@@ -122,15 +130,7 @@ export default function OrderTrackingPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-6">
-        <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-full bg-zinc-200" />
-          <h2 className="text-lg font-semibold text-zinc-900">Loading tracking...</h2>
-          <p className="mt-2 text-sm text-zinc-600">Preparing shipment status.</p>
-        </div>
-      </div>
-    )
+    return <OrderTrackingLoadingState />
   }
 
   if (!shipment) {
@@ -207,15 +207,27 @@ export default function OrderTrackingPage() {
                             : "border-zinc-200 bg-white text-zinc-400"
                         }`}
                       >
-                        {done ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-4 w-4" />}
+                        {done ? (
+                          <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                          <Circle className="h-4 w-4" />
+                        )}
                       </div>
                       {index !== progressOrder.length - 1 ? (
-                        <div className={`mt-2 h-10 w-px ${done ? "bg-emerald-200" : "bg-zinc-200"}`} />
+                        <div
+                          className={`mt-2 h-10 w-px ${
+                            done ? "bg-emerald-200" : "bg-zinc-200"
+                          }`}
+                        />
                       ) : null}
                     </div>
 
                     <div className="pb-6">
-                      <p className={`text-sm font-semibold ${active ? "text-zinc-950" : "text-zinc-700"}`}>
+                      <p
+                        className={`text-sm font-semibold ${
+                          active ? "text-zinc-950" : "text-zinc-700"
+                        }`}
+                      >
                         {formatStatus(step)}
                       </p>
                       <p className="mt-1 text-sm text-zinc-500">
@@ -265,6 +277,22 @@ export default function OrderTrackingPage() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function OrderTrackingFallback() {
+  return <OrderTrackingLoadingState />
+}
+
+function OrderTrackingLoadingState() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white px-6">
+      <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-full bg-zinc-200" />
+        <h2 className="text-lg font-semibold text-zinc-900">Loading tracking...</h2>
+        <p className="mt-2 text-sm text-zinc-600">Preparing shipment status.</p>
       </div>
     </div>
   )

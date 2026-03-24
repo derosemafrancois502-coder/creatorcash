@@ -1,6 +1,5 @@
 import {
   fallbackLearnItems,
-  filterLearnItems,
   mapMicrosoftLearnItem,
   type LearnApiResponse,
   type LearnItem,
@@ -17,6 +16,16 @@ type SearchMicrosoftLearnOptions = {
   type?: string
   limit?: number
   locale?: string
+}
+
+type LearnItemWithExtras = LearnItem & {
+  skills?: string[]
+  provider?: string
+  type?: string
+  level?: string
+  locale?: string
+  products?: string[]
+  roles?: string[]
 }
 
 const MICROSOFT_LEARN_BASE_URL =
@@ -119,12 +128,78 @@ function buildMicrosoftLearnUrl(options?: SearchMicrosoftLearnOptions) {
   return url.toString()
 }
 
-function normalizeMicrosoftItems(data: any): any[] {
+function normalizeMicrosoftItems(data: unknown): unknown[] {
   if (Array.isArray(data)) return data
-  if (Array.isArray(data?.value)) return data.value
-  if (Array.isArray(data?.items)) return data.items
-  if (Array.isArray(data?.results)) return data.results
+
+  if (
+    data &&
+    typeof data === "object" &&
+    "value" in data &&
+    Array.isArray((data as { value?: unknown[] }).value)
+  ) {
+    return (data as { value: unknown[] }).value
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    "items" in data &&
+    Array.isArray((data as { items?: unknown[] }).items)
+  ) {
+    return (data as { items: unknown[] }).items
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    "results" in data &&
+    Array.isArray((data as { results?: unknown[] }).results)
+  ) {
+    return (data as { results: unknown[] }).results
+  }
+
   return []
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : []
+}
+
+function applyLearnFilters(
+  items: LearnItem[],
+  options?: { query?: string; type?: string }
+): LearnItem[] {
+  const query = options?.query?.trim().toLowerCase() || ""
+  const type = options?.type?.trim() || ""
+
+  return items.filter((item) => {
+    const safeItem = item as LearnItemWithExtras
+    const matchesType = type ? safeItem.type === type : true
+
+    const haystack = [
+      safeItem.title,
+      safeItem.summary,
+      safeItem.provider,
+      safeItem.type,
+      safeItem.level,
+      safeItem.locale,
+      ...readStringArray(safeItem.products),
+      ...readStringArray(safeItem.roles),
+      ...readStringArray(safeItem.skills),
+    ]
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.length > 0
+      )
+      .join(" ")
+      .toLowerCase()
+
+    const matchesQuery = query ? haystack.includes(query) : true
+
+    return matchesType && matchesQuery
+  })
 }
 
 export async function fetchMicrosoftLearnItems(
@@ -155,7 +230,7 @@ export async function fetchMicrosoftLearnItems(
 
   console.log("MICROSOFT LEARN RAW COUNT:", rawItems.length)
 
-  return rawItems.map(mapMicrosoftLearnItem)
+  return rawItems.map((item) => mapMicrosoftLearnItem(item))
 }
 
 export async function getLearnCatalog(
@@ -165,12 +240,10 @@ export async function getLearnCatalog(
   const type = options?.type?.trim() || ""
 
   if (!hasMicrosoftCredentials()) {
-    const fallback = filterLearnItems(fallbackLearnItems, { query, type })
+    const fallback = applyLearnFilters(fallbackLearnItems, { query, type })
+
     return {
       items: fallback,
-      total: fallback.length,
-      query,
-      type,
       source: "fallback",
     }
   }
@@ -182,13 +255,10 @@ export async function getLearnCatalog(
     locale: options?.locale || "en-us",
   })
 
-  const filtered = filterLearnItems(liveItems, { query, type })
+  const filtered = applyLearnFilters(liveItems, { query, type })
 
   return {
     items: filtered,
-    total: filtered.length,
-    query,
-    type,
     source: "microsoft-learn",
   }
 }

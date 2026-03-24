@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client"
 
 import Link from "next/link"
@@ -248,6 +249,15 @@ export default function Login() {
                 className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10"
               >
                 Back home
+              </Link>
+            </div>
+
+            <div className="flex items-center justify-center pt-1">
+              <Link
+                href="/forgot-username"
+                className="text-sm text-zinc-400 transition hover:text-yellow-300"
+              >
+                Forgot username?
               </Link>
             </div>
 

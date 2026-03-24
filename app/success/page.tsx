@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { clearCart } from "@/lib/cart"
@@ -14,6 +14,14 @@ type OrderSummary = {
 }
 
 export default function SuccessPage() {
+  return (
+    <Suspense fallback={<SuccessFallback />}>
+      <SuccessContent />
+    </Suspense>
+  )
+}
+
+function SuccessContent() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
 
@@ -165,6 +173,14 @@ export default function SuccessPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SuccessFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-black text-white">
+      Loading success page...
     </div>
   )
 }

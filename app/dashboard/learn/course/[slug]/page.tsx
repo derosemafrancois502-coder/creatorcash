@@ -31,6 +31,52 @@ type PageProps = {
   }>
 }
 
+type LearnItemSafe = {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  type: string
+  level: string
+  provider: string
+  locale: string
+  url: string
+  durationInMinutes: number
+  products: string[]
+  roles: string[]
+  skills?: string[]
+  videoPreviewUrl?: string
+  imageUrl?: string
+}
+
+function normalizeLearnItem(raw: any): LearnItemSafe {
+  return {
+    id: String(raw?.id ?? ""),
+    slug: String(raw?.slug ?? ""),
+    title: String(raw?.title ?? "Untitled"),
+    summary: String(raw?.summary ?? ""),
+    type: String(raw?.type ?? "module"),
+    level: String(raw?.level ?? "Beginner"),
+    provider: String(raw?.provider ?? "Microsoft Learn"),
+    locale: String(raw?.locale ?? "en-us"),
+    url: String(raw?.url ?? "#"),
+    durationInMinutes:
+      typeof raw?.durationInMinutes === "number" ? raw.durationInMinutes : 0,
+    products: Array.isArray(raw?.products)
+      ? raw.products.filter((value: unknown) => typeof value === "string")
+      : [],
+    roles: Array.isArray(raw?.roles)
+      ? raw.roles.filter((value: unknown) => typeof value === "string")
+      : [],
+    skills: Array.isArray(raw?.skills)
+      ? raw.skills.filter((value: unknown) => typeof value === "string")
+      : [],
+    videoPreviewUrl:
+      typeof raw?.videoPreviewUrl === "string" ? raw.videoPreviewUrl : undefined,
+    imageUrl: typeof raw?.imageUrl === "string" ? raw.imageUrl : undefined,
+  }
+}
+
 export default async function LearnCourseDetailPage({ params }: PageProps) {
   const { slug } = await params
 
@@ -41,19 +87,32 @@ export default async function LearnCourseDetailPage({ params }: PageProps) {
     locale: "en-us",
   })
 
-  const items = catalog.items.length > 0 ? catalog.items : fallbackLearnItems
-  const item = getLearnItemBySlug(items, slug)
+  const rawItems =
+    Array.isArray(catalog?.items) && catalog.items.length > 0
+      ? catalog.items
+      : fallbackLearnItems
+
+  const items = rawItems.map(normalizeLearnItem)
+  const item = getLearnItemBySlug(items, slug) as LearnItemSafe | undefined
 
   if (!item) {
     notFound()
   }
 
+  const itemProducts = Array.isArray(item.products) ? item.products : []
+  const itemRoles = Array.isArray(item.roles) ? item.roles : []
+  const itemSkills = Array.isArray(item.skills) ? item.skills : []
+
   const relatedItems = items
     .filter((course) => course.slug !== item.slug)
     .filter((course) => {
-      const sameProduct =
-        course.products.some((product) => item.products.includes(product))
-      const sameRole = course.roles.some((role) => item.roles.includes(role))
+      const courseProducts = Array.isArray(course.products) ? course.products : []
+      const courseRoles = Array.isArray(course.roles) ? course.roles : []
+
+      const sameProduct = courseProducts.some((product) =>
+        itemProducts.includes(product)
+      )
+      const sameRole = courseRoles.some((role) => itemRoles.includes(role))
       const sameType = course.type === item.type
 
       return sameProduct || sameRole || sameType
@@ -266,9 +325,9 @@ export default async function LearnCourseDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {item.products.length > 0 ? (
+              {itemProducts.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
-                  {item.products.map((product) => (
+                  {itemProducts.map((product) => (
                     <span
                       key={product}
                       className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-zinc-200"
@@ -292,9 +351,9 @@ export default async function LearnCourseDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {item.roles.length > 0 ? (
+              {itemRoles.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
-                  {item.roles.map((role) => (
+                  {itemRoles.map((role) => (
                     <span
                       key={role}
                       className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-zinc-200"
@@ -311,7 +370,7 @@ export default async function LearnCourseDetailPage({ params }: PageProps) {
               )}
             </div>
 
-            {item.skills && item.skills.length > 0 && (
+            {itemSkills.length > 0 && (
               <div className="rounded-[30px] border border-white/10 bg-white/[0.03] p-5 md:p-6">
                 <div className="mb-5">
                   <h2 className="text-2xl font-semibold tracking-tight">
@@ -323,7 +382,7 @@ export default async function LearnCourseDetailPage({ params }: PageProps) {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  {item.skills.map((skill) => (
+                  {itemSkills.map((skill) => (
                     <span
                       key={skill}
                       className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-zinc-200"
