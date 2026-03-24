@@ -1,5 +1,30 @@
 import Stripe from "stripe"
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-02-25.clover",
+let stripeInstance: Stripe | null = null
+
+function getStripeInstance() {
+  if (stripeInstance) return stripeInstance
+
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+
+  if (!stripeSecretKey) {
+    throw new Error("STRIPE_SECRET_KEY is missing.")
+  }
+
+  stripeInstance = new Stripe(stripeSecretKey)
+
+  return stripeInstance
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    const instance = getStripeInstance()
+    const value = (instance as any)[prop]
+
+    if (typeof value === "function") {
+      return value.bind(instance)
+    }
+
+    return value
+  },
 })
