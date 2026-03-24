@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-})
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.OPENAI_API_KEY
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY is missing." },
+        { status: 500 }
+      )
+    }
+
+    const openai = new OpenAI({
+      apiKey,
+    })
+
     const { niche, product, goal, platform, tone, language } = await req.json()
 
     if (!niche || !product || !goal || !platform || !tone) {
