@@ -1,19 +1,27 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export async function GET(
   _req: Request,
   context: { params: Promise<{ code: string }> }
 ) {
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "")
+
   try {
     const { code } = await context.params
 
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "")
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing Supabase env vars in /a/[code] route")
+      return NextResponse.redirect(`${baseUrl}/marketplace`)
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     if (!code) {
       return NextResponse.redirect(`${baseUrl}/marketplace`)
@@ -42,7 +50,6 @@ export async function GET(
     )
   } catch (error) {
     console.error("affiliate redirect error:", error)
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "")
     return NextResponse.redirect(`${baseUrl}/marketplace`)
   }
 }
