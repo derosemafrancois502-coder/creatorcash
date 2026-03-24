@@ -119,7 +119,7 @@ export default function SellerOrdersPage() {
 
       if (!user) {
         router.replace("/login")
-        return
+        return false
       }
 
       const { data: profile } = await supabase
@@ -130,10 +130,8 @@ export default function SellerOrdersPage() {
 
       if (!profile || (profile.role !== "seller" && profile.role !== "admin")) {
         router.replace("/login")
-        return
+        return false
       }
-
-      setCheckingAuth(false)
 
       const { data: sellerProducts, error: productsError } = await supabase
         .from("products")
@@ -143,7 +141,7 @@ export default function SellerOrdersPage() {
       if (productsError) {
         console.error("Load seller products error:", productsError)
         setOrders([])
-        return
+        return true
       }
 
       const productRows = (sellerProducts ?? []) as ProductRow[]
@@ -154,7 +152,7 @@ export default function SellerOrdersPage() {
 
       if (productIds.length === 0) {
         setOrders([])
-        return
+        return true
       }
 
       const { data: itemRows, error: itemsError } = await supabase
@@ -165,7 +163,7 @@ export default function SellerOrdersPage() {
       if (itemsError) {
         console.error("Load order items error:", itemsError)
         setOrders([])
-        return
+        return true
       }
 
       const items = (itemRows ?? []) as OrderItemRow[]
@@ -180,7 +178,7 @@ export default function SellerOrdersPage() {
 
       if (orderIds.length === 0) {
         setOrders([])
-        return
+        return true
       }
 
       const [{ data: orderRows }, { data: addressRows }, { data: shipmentRows }, { data: shippingProfiles }] =
@@ -244,20 +242,26 @@ export default function SellerOrdersPage() {
       if (!(shippingProfiles as ShippingProfileRow[] | null)?.[0]) {
         console.warn("No seller_shipping_profiles row found for current seller.")
       }
+
+      return true
     } catch (error) {
       console.error("Load seller orders page error:", error)
       setOrders([])
-    } finally {
-      setCheckingAuth(false)
+      return true
     }
   }
 
   useEffect(() => {
     async function init() {
       setLoading(true)
-      await loadOrders()
-      setLoading(false)
+      const shouldRenderPage = await loadOrders()
+
+      if (shouldRenderPage) {
+        setCheckingAuth(false)
+        setLoading(false)
+      }
     }
+
     void init()
   }, [router, supabase])
 
@@ -379,23 +383,12 @@ export default function SellerOrdersPage() {
   const selectedOrder =
     filteredOrders.find((o) => String(o.order.id) === selectedOrderId) ?? filteredOrders[0] ?? null
 
-  if (checkingAuth) {
+  if (checkingAuth || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
           <p>Checking access...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
-          <p>Loading seller orders...</p>
         </div>
       </div>
     )
