@@ -102,6 +102,7 @@ export default function SellerOrdersPage() {
   const supabase = useMemo(() => createClient(), [])
 
   const [loading, setLoading] = useState(true)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [labelLoadingId, setLabelLoadingId] = useState<string | null>(null)
   const [shipmentUpdatingId, setShipmentUpdatingId] = useState<string | null>(null)
@@ -131,6 +132,8 @@ export default function SellerOrdersPage() {
         router.replace("/login")
         return
       }
+
+      setCheckingAuth(false)
 
       const { data: sellerProducts, error: productsError } = await supabase
         .from("products")
@@ -244,6 +247,8 @@ export default function SellerOrdersPage() {
     } catch (error) {
       console.error("Load seller orders page error:", error)
       setOrders([])
+    } finally {
+      setCheckingAuth(false)
     }
   }
 
@@ -373,6 +378,17 @@ export default function SellerOrdersPage() {
 
   const selectedOrder =
     filteredOrders.find((o) => String(o.order.id) === selectedOrderId) ?? filteredOrders[0] ?? null
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
+          <p>Checking access...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
