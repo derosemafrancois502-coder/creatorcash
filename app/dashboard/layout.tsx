@@ -61,7 +61,6 @@ type SidebarContentProps = {
   navItems: NavItem[]
   profile: ProfileRow | null
   userEmail?: string | null
-  mobile?: boolean
   onNavigate?: () => void
 }
 
@@ -200,7 +199,11 @@ function MobileDashboardShell({
   return (
     <div className="flex min-h-screen bg-black text-yellow-400">
       <aside className="hidden w-72 shrink-0 border-r border-yellow-500/30 bg-black p-6 lg:flex lg:flex-col lg:justify-between">
-        <SidebarContent navItems={navItems} profile={profile} userEmail={userEmail} />
+        <SidebarContent
+          navItems={navItems}
+          profile={profile}
+          userEmail={userEmail}
+        />
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
