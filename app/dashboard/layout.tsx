@@ -88,7 +88,7 @@ function SidebarContent({
           <p className="mt-2 break-all text-xs text-zinc-500">{userEmail}</p>
         </div>
 
-        <nav className="flex flex-col gap-2 pb-4">
+        <nav className="flex flex-col gap-2 pb-6">
           {navItems.map((item) => {
             const itemAccess = checkModuleAccess(profile || {}, {
               alwaysFree: item.alwaysFree,
@@ -102,7 +102,7 @@ function SidebarContent({
                   key={item.name}
                   href="/dashboard/billing"
                   onClick={onNavigate}
-                  className="block rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                  className="block w-full rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
                 >
                   {item.name} 🔒
                 </Link>
@@ -114,7 +114,7 @@ function SidebarContent({
                 key={item.name}
                 href={item.href}
                 onClick={onNavigate}
-                className="block rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                className="block w-full rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
               >
                 {item.name}
               </Link>
