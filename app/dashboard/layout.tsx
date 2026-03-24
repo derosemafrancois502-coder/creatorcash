@@ -57,177 +57,50 @@ type ProfileRow = {
   subscription_expires_at?: string | null
 }
 
-type SidebarContentProps = {
-  navItems: NavItem[]
-  profile: ProfileRow | null
-  userEmail?: string | null
-  onNavigate?: () => void
-  mobile?: boolean
-}
-
 function SidebarContent({
   navItems,
   profile,
   userEmail,
-  onNavigate,
-  mobile = false,
-}: SidebarContentProps) {
+}: {
+  navItems: NavItem[]
+  profile: ProfileRow | null
+  userEmail?: string | null
+}) {
   const sidebarAccess = checkModuleAccess(profile || {}, {})
   const trial = getTrialCountdown(profile?.trial_expires_at || null)
 
-  const wrapperClass = mobile
-    ? "flex h-full flex-col justify-between text-black"
-    : "flex h-full flex-col justify-between"
-
-  const titleClass = mobile
-    ? "mb-6 text-2xl font-bold tracking-tight text-black"
-    : "mb-8 text-3xl font-bold tracking-tight text-yellow-400"
-
-  const osLabelClass = mobile
-    ? "text-xs uppercase tracking-[0.25em] text-zinc-500"
-    : "text-xs uppercase tracking-[0.25em] text-yellow-500/60"
-
-  const emailClass = "mt-2 break-all text-xs text-zinc-500"
-
-  const navClass = mobile
-    ? "flex flex-col gap-1.5 pb-6"
-    : "flex flex-col gap-2 pb-6"
-
-  const lockedLinkClass = mobile
-    ? "block w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium leading-6 text-black transition hover:bg-zinc-100"
-    : "block w-full rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
-
-  const linkClass = mobile
-    ? "block w-full rounded-2xl px-4 py-3 text-sm font-medium leading-6 text-black transition hover:bg-zinc-100"
-    : "block w-full rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
-
-  const cardClass = mobile
-    ? "rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-    : "rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4"
-
-  const smallLabelClass = "text-xs uppercase tracking-[0.2em] text-zinc-500"
-
-  const planTextClass = mobile
-    ? "mt-2 text-lg font-bold text-black"
-    : "mt-2 text-lg font-bold text-yellow-400"
-
-  const secondaryTextClass = mobile
-    ? "mt-1 text-sm text-zinc-600"
-    : "mt-1 text-sm text-zinc-400"
-
-  const statusTextClass = "mt-2 text-xs leading-5 text-zinc-500"
-
-  const primaryButtonClass = mobile
-    ? "mt-4 block rounded-2xl bg-black px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90"
-    : "mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
-
   return (
-    <div className={wrapperClass}>
+    <div className="flex h-full flex-col justify-between">
       <div>
-        <h1 className={titleClass}>CreatorGoat</h1>
+        <h1 className="mb-8 text-3xl font-bold text-yellow-400">
+          CreatorGoat
+        </h1>
 
         <div className="mb-6">
-          <p className={osLabelClass}>Creator OS</p>
-          <p className={emailClass}>{userEmail}</p>
+          <p className="text-xs text-yellow-500/60">Creator OS</p>
+          <p className="text-xs text-zinc-500">{userEmail}</p>
         </div>
 
-        <nav className={navClass}>
-          {navItems.map((item) => {
-            const itemAccess = checkModuleAccess(profile || {}, {
-              alwaysFree: item.alwaysFree,
-              founderOnly: item.requiresFounder,
-              blockedWhenFree: item.blockedWhenFree,
-            })
-
-            if (!itemAccess.allowed) {
-              return (
-                <Link
-                  key={item.name}
-                  href="/dashboard/billing"
-                  onClick={onNavigate}
-                  className={lockedLinkClass}
-                >
-                  {item.name} 🔒
-                </Link>
-              )
-            }
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={onNavigate}
-                className={linkClass}
-              >
-                {item.name}
-              </Link>
-            )
-          })}
+        <nav className="flex flex-col gap-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="rounded-xl px-4 py-3 text-yellow-300 hover:bg-yellow-400 hover:text-black"
+            >
+              {item.name}
+            </Link>
+          ))}
         </nav>
       </div>
 
       <div className="space-y-4">
-        <div className={cardClass}>
-          <p className={smallLabelClass}>Active Plan</p>
-          <p className={planTextClass}>{getPlanDisplay(profile?.plan)}</p>
-          <p className={secondaryTextClass}>
-            {sidebarAccess.founderAccess
-              ? "Full creator system active"
-              : "Upgrade for premium tools"}
+        <div className="rounded-xl border border-yellow-500/20 p-4">
+          <p className="text-xs text-zinc-500">Plan</p>
+          <p className="text-yellow-400 font-bold">
+            {getPlanDisplay(profile?.plan)}
           </p>
         </div>
-
-        {!sidebarAccess.founderAccess && (
-          <div className={cardClass}>
-            <p className={smallLabelClass}>Access Status</p>
-
-            {sidebarAccess.normalizedPlan === "free" ? (
-              trial.expired ? (
-                <p className="mt-2 text-sm font-semibold text-red-500">
-                  Trial expired — Upgrade Now
-                </p>
-              ) : (
-                <p
-                  className={
-                    mobile
-                      ? "mt-2 text-sm font-semibold text-black"
-                      : "mt-2 text-sm font-semibold text-yellow-400"
-                  }
-                >
-                  {trial.remainingMinutes}:
-                  {trial.remainingSeconds.toString().padStart(2, "0")} left
-                </p>
-              )
-            ) : sidebarAccess.subscriptionExpired ? (
-              <p className="mt-2 text-sm font-semibold text-red-500">
-                Plan expired — Renew Now
-              </p>
-            ) : (
-              <p
-                className={
-                  mobile
-                    ? "mt-2 text-sm font-semibold text-black"
-                    : "mt-2 text-sm font-semibold text-yellow-400"
-                }
-              >
-                Paid access active
-              </p>
-            )}
-
-            <p className={statusTextClass}>
-              After free trial or subscription expiration, only Marketplace browse,
-              Calendar, Translate, and Billing stay open.
-            </p>
-
-            <Link
-              href="/dashboard/billing"
-              onClick={onNavigate}
-              className={primaryButtonClass}
-            >
-              Upgrade Now
-            </Link>
-          </div>
-        )}
 
         <LogoutButton />
       </div>
@@ -248,7 +121,9 @@ function MobileDashboardShell({
 }) {
   return (
     <div className="flex min-h-screen bg-black text-yellow-400">
-      <aside className="hidden w-72 shrink-0 border-r border-yellow-500/30 bg-black p-6 lg:flex lg:flex-col lg:justify-between">
+      
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden lg:flex w-72 p-6 border-r border-yellow-500/30">
         <SidebarContent
           navItems={navItems}
           profile={profile}
@@ -256,32 +131,18 @@ function MobileDashboardShell({
         />
       </aside>
 
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-yellow-500/20 bg-black/90 backdrop-blur lg:hidden">
-          <div className="flex items-center justify-between px-4 py-4">
-            <div className="min-w-0">
-              <p className="truncate text-lg font-bold tracking-tight text-yellow-400">
-                CreatorGoat
-              </p>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-500/60">
-                Creator OS
-              </p>
-            </div>
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col">
 
-            <MobileSidebarDrawer>
-              <SidebarContent
-                navItems={navItems}
-                profile={profile}
-                userEmail={userEmail}
-                mobile
-              />
-            </MobileSidebarDrawer>
-          </div>
+        {/* MOBILE HEADER */}
+        <header className="lg:hidden flex items-center justify-between px-4 py-4 border-b border-yellow-500/20">
+          <h1 className="text-yellow-400 font-bold">CreatorGoat</h1>
+
+          {/* 🔥 IMPORTANT FIX */}
+          <MobileSidebarDrawer navItems={navItems} />
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
-          {children}
-        </main>
+        <main className="p-4">{children}</main>
       </div>
     </div>
   )
@@ -318,19 +179,13 @@ export default async function DashboardLayout({
 
   let profile: ProfileRow | null = null
 
-  const { data: profileData, error: profileError } = await supabaseAdmin
+  const { data } = await supabaseAdmin
     .from("profiles")
     .select("plan, trial_expires_at, subscription_expires_at")
     .eq("id", user.id)
     .maybeSingle()
 
-  if (profileError) {
-    console.error("DASHBOARD LAYOUT PROFILE ERROR:", profileError)
-  }
-
-  if (profileData) {
-    profile = profileData
-  }
+  if (data) profile = data
 
   return (
     <MobileDashboardShell
