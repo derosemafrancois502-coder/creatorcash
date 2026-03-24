@@ -32,5 +32,8 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4.2.1",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "@remotion/compositor-linux-x64-gnu": "4.0.438"
   }
 }
