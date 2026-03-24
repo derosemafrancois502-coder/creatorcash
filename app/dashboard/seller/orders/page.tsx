@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import {
   ArrowLeft,
-  CheckCircle2,
   Clock3,
   Loader2,
   Package,
@@ -15,7 +14,6 @@ import {
   Search,
   ShoppingBag,
   Truck,
-  User,
 } from "lucide-react"
 
 type OrderRow = Record<string, any>
@@ -119,7 +117,7 @@ export default function SellerOrdersPage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        router.push("/marketplace")
+        router.replace("/login")
         return
       }
 
@@ -130,7 +128,7 @@ export default function SellerOrdersPage() {
         .maybeSingle()
 
       if (!profile || (profile.role !== "seller" && profile.role !== "admin")) {
-        router.push("/marketplace")
+        router.replace("/login")
         return
       }
 
@@ -240,8 +238,7 @@ export default function SellerOrdersPage() {
         setSelectedOrderId(null)
       }
 
-      // Keep this available for label generation presence check
-      if (!shippingProfiles?.[0]) {
+      if (!(shippingProfiles as ShippingProfileRow[] | null)?.[0]) {
         console.warn("No seller_shipping_profiles row found for current seller.")
       }
     } catch (error) {
