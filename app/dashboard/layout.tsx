@@ -85,10 +85,10 @@ function SidebarContent({
           <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/60">
             Creator OS
           </p>
-          <p className="mt-2 text-xs text-zinc-500">{userEmail}</p>
+          <p className="mt-2 break-all text-xs text-zinc-500">{userEmail}</p>
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2 pb-4">
           {navItems.map((item) => {
             const itemAccess = checkModuleAccess(profile || {}, {
               alwaysFree: item.alwaysFree,
@@ -102,7 +102,7 @@ function SidebarContent({
                   key={item.name}
                   href="/dashboard/billing"
                   onClick={onNavigate}
-                  className="rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                  className="block rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
                 >
                   {item.name} 🔒
                 </Link>
@@ -114,7 +114,7 @@ function SidebarContent({
                 key={item.name}
                 href={item.href}
                 onClick={onNavigate}
-                className="rounded-xl px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                className="block rounded-xl px-4 py-3 text-sm font-medium leading-6 text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
               >
                 {item.name}
               </Link>
@@ -165,7 +165,7 @@ function SidebarContent({
               </p>
             )}
 
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
               After free trial or subscription expiration, only Marketplace browse,
               Calendar, Translate, and Billing stay open.
             </p>
@@ -203,11 +203,11 @@ function MobileDashboardShell({
         <SidebarContent navItems={navItems} profile={profile} userEmail={userEmail} />
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 border-b border-yellow-500/20 bg-black/90 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between px-4 py-4">
-            <div>
-              <p className="text-lg font-bold tracking-tight text-yellow-400">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold tracking-tight text-yellow-400">
                 CreatorGoat
               </p>
               <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-500/60">
@@ -225,7 +225,9 @@ function MobileDashboardShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">{children}</main>
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
+          {children}
+        </main>
       </div>
     </div>
   )
