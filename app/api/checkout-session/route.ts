@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe"
+import Stripe from "stripe"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export async function GET(req: Request) {
   try {
+    const stripeKey = process.env.STRIPE_SECRET_KEY
+
+    if (!stripeKey) {
+      return NextResponse.json(
+        { error: "STRIPE_SECRET_KEY is missing." },
+        { status: 500 }
+      )
+    }
+
+    const stripe = new Stripe(stripeKey)
+
     const { searchParams } = new URL(req.url)
     const sessionId = searchParams.get("session_id")
 
