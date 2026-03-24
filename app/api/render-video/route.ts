@@ -1,13 +1,17 @@
-import { bundle } from "@remotion/bundler"
-import { renderMedia, selectComposition } from "@remotion/renderer"
 import path from "path"
 import fs from "fs"
 import os from "os"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const { caption, scenes, sceneVideos, mode } = body
+
+    const { bundle } = await import("@remotion/bundler")
+    const { renderMedia, selectComposition } = await import("@remotion/renderer")
 
     const entry = path.join(process.cwd(), "remotion", "index.ts")
 

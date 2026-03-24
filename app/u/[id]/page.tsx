@@ -1,73 +1,69 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase"
 import { useParams } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
-export default function PublicProfile(){
-
-const params = useParams()
-
-const userId = params?.id as string
-
-const [links, setLinks] = useState<any[]>([])
-
-const supabase = createClient()
-
-useEffect(()=>{
-
-if(userId){
-
-loadLinks(userId)
-
+type LinkItem = {
+  id?: string
+  user_id?: string
+  url?: string
+  [key: string]: any
 }
 
-},[userId])
+export default function PublicProfile() {
+  const params = useParams()
+  const userId = params?.id as string
 
-async function loadLinks(id:string){
+  const [links, setLinks] = useState<LinkItem[]>([])
+  const supabase = createClient()
 
-const { data } = await supabase
+  useEffect(() => {
+    if (userId) {
+      void loadLinks(userId)
+    }
+  }, [userId])
 
-.from("links")
+  async function loadLinks(id: string) {
+    try {
+      const { data, error } = await supabase
+        .from("links")
+        .select("*")
+        .eq("user_id", id)
 
-.select("*")
+      if (error) {
+        console.error("Load links error:", error.message, error)
+        setLinks([])
+        return
+      }
 
-.eq("user_id", id)
+      setLinks(data || [])
+    } catch (error) {
+      console.error("Unexpected load links error:", error)
+      setLinks([])
+    }
+  }
 
-setLinks(data || [])
+  return (
+    <div style={main}>
+      <h1>User Profile</h1>
 
+      {links.length === 0 ? (
+        <p>No links found.</p>
+      ) : (
+        links.map((link, index) => (
+          <div key={link.id || index}>
+            {link.url || "No URL"}
+          </div>
+        ))
+      )}
+    </div>
+  )
 }
 
-return(
-
-<div style={main}>
-
-<h1>User Profile</h1>
-
-{links.map((link,index)=>(
-
-<div key={index}>
-
-{link.url}
-
-</div>
-
-))}
-
-</div>
-
-)
-
-}
-
-const main = {
-
-background:"black",
-
-color:"gold",
-
-minHeight:"100vh",
-
-padding:"40px"
-
+const main: React.CSSProperties = {
+  background: "black",
+  color: "gold",
+  minHeight: "100vh",
+  padding: "40px",
 }

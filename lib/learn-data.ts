@@ -239,6 +239,8 @@ export const fallbackLearnCatalog: LearnItem[] = [
   },
 ]
 
+export const fallbackLearnItems: LearnItem[] = fallbackLearnCatalog
+
 export function searchFallbackLearnCatalog(params?: {
   q?: string
   type?: string
@@ -286,4 +288,58 @@ export function searchFallbackLearnCatalog(params?: {
   }
 
   return results.slice(0, limit)
+}
+
+export function filterLearnItems(items: LearnItem[]) {
+  return items.filter(
+    (item) =>
+      item &&
+      typeof item.title === "string" &&
+      item.title.trim().length > 0 &&
+      typeof item.slug === "string" &&
+      item.slug.trim().length > 0
+  )
+}
+
+export function getLearnItemBySlug(
+  items: LearnItem[],
+  slug: string
+): LearnItem | null {
+  if (!slug) return null
+  return items.find((item) => item.slug === slug) ?? null
+}
+
+export function mapMicrosoftLearnItem(item: any): LearnItem {
+  const title = item?.title || item?.name || "Microsoft Learn Item"
+  const rawType = item?.type || item?.contentType || "module"
+  const rawLevel = item?.level || item?.difficulty || "Beginner"
+  const rawUrl = item?.url || item?.webUrl || "https://learn.microsoft.com/"
+  const rawSlug =
+    item?.slug ||
+    item?.urlName ||
+    String(title)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+
+  return {
+    id:
+      item?.id ||
+      item?.uid ||
+      rawSlug ||
+      `learn-${Math.random().toString(36).slice(2, 10)}`,
+    slug: rawSlug,
+    title,
+    summary: item?.summary || item?.description || "",
+    type: rawType,
+    level: rawLevel,
+    provider: item?.provider || "Microsoft Learn",
+    durationInMinutes: Number(item?.durationInMinutes || item?.duration || 0),
+    locale: item?.locale || "en-us",
+    url: rawUrl,
+    imageUrl: item?.imageUrl || item?.iconUrl || "",
+    videoPreviewUrl: item?.videoPreviewUrl || "",
+    products: Array.isArray(item?.products) ? item.products : [],
+    roles: Array.isArray(item?.roles) ? item.roles : [],
+  }
 }
