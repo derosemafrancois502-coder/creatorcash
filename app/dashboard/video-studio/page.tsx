@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Player } from "@remotion/player"
-import { LuxuryPreview } from "@/components/remotion/LuxuryPreview"
+import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 const PRODUCT_IMAGE_BUCKET = "product-images"
@@ -165,6 +163,90 @@ function getPlanDisplay(plan: UserPlan) {
 function hasTrialExpired(trialExpiresAt?: string | null) {
   if (!trialExpiresAt) return false
   return Date.now() > new Date(trialExpiresAt).getTime()
+}
+
+function VideoPreviewFrame({
+  caption,
+  audioUrl,
+  scenes,
+  sceneVideos,
+  activeTool,
+  lumaVideoUrl,
+}: {
+  caption: string
+  audioUrl: string
+  scenes: string[]
+  sceneVideos: string[]
+  activeTool: ToolType
+  lumaVideoUrl: string
+}) {
+  const fallbackVideos = luxuryVideos.map((item) => item.src)
+  const previewVideos = sceneVideos.length > 0 ? sceneVideos : fallbackVideos
+  const primaryVideo = previewVideos[0] || ""
+  const previewLabel =
+    activeTool === "product-video"
+      ? "Product Video Preview"
+      : activeTool === "cinematic-video"
+        ? "Cinematic Video Preview"
+        : "Luxury Motivational Preview"
+
+  return (
+    <div className="w-[360px] max-w-full overflow-hidden rounded-[24px] border border-yellow-500/20 bg-black">
+      <div className="relative aspect-[9/16] bg-black">
+        {lumaVideoUrl ? (
+          <video
+            controls
+            playsInline
+            className="h-full w-full object-cover"
+          >
+            <source src={lumaVideoUrl} type="video/mp4" />
+          </video>
+        ) : primaryVideo ? (
+          <video
+            autoPlay
+            muted={!audioUrl}
+            loop={!audioUrl}
+            playsInline
+            controls
+            className="h-full w-full object-cover"
+          >
+            <source src={primaryVideo} type="video/mp4" />
+          </video>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-black text-center text-zinc-500">
+            No preview media yet.
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-4">
+          <div className="mb-2 inline-flex rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/80">
+            {previewLabel}
+          </div>
+
+          <p className="text-sm font-medium leading-6 text-white">
+            {caption || "Video caption preview will appear here."}
+          </p>
+
+          {scenes.length > 0 ? (
+            <p className="mt-2 text-xs text-zinc-300">
+              {scenes.length} scene{scenes.length > 1 ? "s" : ""} generated
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {audioUrl ? (
+        <div className="border-t border-white/10 bg-zinc-950 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+            AI Voice Preview
+          </p>
+          <audio controls className="w-full">
+            <source src={audioUrl} type="audio/mpeg" />
+          </audio>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export default function VideoStudioPage() {
@@ -1074,46 +1156,6 @@ export default function VideoStudioPage() {
   const shortCaption =
     caption.length > 110 ? `${caption.slice(0, 110)}...` : caption
 
-  const player = useMemo(() => {
-    const fallbackVideos = luxuryVideos.map((item) => item.src)
-
-    return (
-      <Player
-        component={LuxuryPreview}
-        inputProps={{
-          caption:
-            shortCaption ||
-            (activeTool === "product-video"
-              ? "Luxury product video preview"
-              : "Luxury motivational preview"),
-          audioUrl,
-          scenes,
-          sceneVideos: sceneVideos.length > 0 ? sceneVideos : fallbackVideos,
-          lumaVideoUrl,
-          mode:
-            activeTool === "product-video"
-              ? "product-video"
-              : activeTool === "cinematic-video"
-                ? "cinematic-video"
-                : "luxury-video",
-        }}
-        durationInFrames={scenes.length > 0 ? scenes.length * 180 : 540}
-        compositionWidth={1080}
-        compositionHeight={1920}
-        fps={30}
-        controls
-        acknowledgeRemotionLicense
-        style={{
-          width: 360,
-          maxWidth: "100%",
-          borderRadius: 24,
-          overflow: "hidden",
-          background: "black",
-        }}
-      />
-    )
-  }, [shortCaption, audioUrl, scenes, sceneVideos, activeTool, lumaVideoUrl])
-
   return (
     <div className="w-full space-y-8">
       <section className="rounded-[32px] border border-yellow-500/20 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.14),transparent_28%),linear-gradient(180deg,rgba(24,24,24,0.98),rgba(10,10,10,0.98))] p-8">
@@ -1459,17 +1501,19 @@ export default function VideoStudioPage() {
           <h2 className="text-2xl font-bold text-yellow-400">Video Preview</h2>
 
           <div className="mt-4">
-            {lumaVideoUrl ? (
-              <video
-                controls
-                playsInline
-                className="w-[360px] max-w-full rounded-[24px] border border-cyan-400/20 bg-black object-cover"
-              >
-                <source src={lumaVideoUrl} type="video/mp4" />
-              </video>
-            ) : (
-              player
-            )}
+            <VideoPreviewFrame
+              caption={
+                shortCaption ||
+                (activeTool === "product-video"
+                  ? "Luxury product video preview"
+                  : "Luxury motivational preview")
+              }
+              audioUrl={audioUrl}
+              scenes={scenes}
+              sceneVideos={sceneVideos}
+              activeTool={activeTool}
+              lumaVideoUrl={lumaVideoUrl}
+            />
           </div>
         </div>
       </section>
