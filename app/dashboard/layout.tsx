@@ -9,6 +9,7 @@ import {
   getPlanDisplay,
   getTrialCountdown,
 } from "@/lib/access/guard"
+import { Menu, X } from "lucide-react"
 
 type NavItem = {
   name: string
@@ -38,7 +39,6 @@ const navItems: NavItem[] = [
   { name: "🔗 Links", href: "/dashboard/links", blockedWhenFree: true },
   { name: "👥 Leads", href: "/dashboard/leads", blockedWhenFree: true },
   { name: "💬 Messages", href: "/dashboard/messages", blockedWhenFree: true },
-  
 
   { name: "🧠 COS", href: "/dashboard/cos", requiresFounder: true, blockedWhenFree: true },
 
@@ -55,6 +55,183 @@ type ProfileRow = {
   plan?: string | null
   trial_expires_at?: string | null
   subscription_expires_at?: string | null
+}
+
+type MobileSidebarProps = {
+  navItems: NavItem[]
+  profile: ProfileRow | null
+  userEmail?: string | null
+}
+
+function SidebarContent({
+  navItems,
+  profile,
+  userEmail,
+  mobile = false,
+}: MobileSidebarProps & { mobile?: boolean }) {
+  const sidebarAccess = checkModuleAccess(profile || {}, {})
+  const trial = getTrialCountdown(profile?.trial_expires_at || null)
+
+  return (
+    <div className="flex h-full flex-col justify-between">
+      <div>
+        <h1 className="mb-8 text-3xl font-bold tracking-tight text-yellow-400">
+          CreatorGoat
+        </h1>
+
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/60">
+            Creator OS
+          </p>
+          <p className="mt-2 text-xs text-zinc-500">{userEmail}</p>
+        </div>
+
+        <nav className="flex flex-col gap-2">
+          {navItems.map((item) => {
+            const itemAccess = checkModuleAccess(profile || {}, {
+              alwaysFree: item.alwaysFree,
+              founderOnly: item.requiresFounder,
+              blockedWhenFree: item.blockedWhenFree,
+            })
+
+            if (!itemAccess.allowed) {
+              return (
+                <Link
+                  key={item.name}
+                  href="/dashboard/billing"
+                  className="rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+                >
+                  {item.name} 🔒
+                </Link>
+              )
+            }
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="rounded-xl px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
+              >
+                {item.name}
+              </Link>
+            )
+          })}
+        </nav>
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            Active Plan
+          </p>
+          <p className="mt-2 text-lg font-bold text-yellow-400">
+            {getPlanDisplay(profile?.plan)}
+          </p>
+          <p className="mt-1 text-sm text-zinc-400">
+            {sidebarAccess.founderAccess
+              ? "Full creator system active"
+              : "Upgrade for premium tools"}
+          </p>
+        </div>
+
+        {!sidebarAccess.founderAccess && (
+          <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              Access Status
+            </p>
+
+            {sidebarAccess.normalizedPlan === "free" ? (
+              trial.expired ? (
+                <p className="mt-2 text-sm font-semibold text-red-400">
+                  Trial expired — Upgrade Now
+                </p>
+              ) : (
+                <p className="mt-2 text-sm font-semibold text-yellow-400">
+                  {trial.remainingMinutes}:
+                  {trial.remainingSeconds.toString().padStart(2, "0")} left
+                </p>
+              )
+            ) : sidebarAccess.subscriptionExpired ? (
+              <p className="mt-2 text-sm font-semibold text-red-400">
+                Plan expired — Renew Now
+              </p>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-yellow-400">
+                Paid access active
+              </p>
+            )}
+
+            <p className="mt-2 text-xs text-zinc-500">
+              After free trial or subscription expiration, only Marketplace browse,
+              Calendar, Translate, and Billing stay open.
+            </p>
+
+            <Link
+              href="/dashboard/billing"
+              className="mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
+            >
+              Upgrade Now
+            </Link>
+          </div>
+        )}
+
+        <LogoutButton />
+      </div>
+    </div>
+  )
+}
+
+function MobileDashboardShell({
+  children,
+  navItems,
+  profile,
+  userEmail,
+}: {
+  children: React.ReactNode
+  navItems: NavItem[]
+  profile: ProfileRow | null
+  userEmail?: string | null
+}) {
+  return (
+    <div className="flex min-h-screen bg-black text-yellow-400">
+      <aside className="hidden w-72 shrink-0 border-r border-yellow-500/30 bg-black p-6 lg:flex lg:flex-col lg:justify-between">
+        <SidebarContent navItems={navItems} profile={profile} userEmail={userEmail} />
+      </aside>
+
+      <div className="flex min-h-screen flex-1 flex-col">
+        <header className="sticky top-0 z-40 border-b border-yellow-500/20 bg-black/90 backdrop-blur lg:hidden">
+          <div className="flex items-center justify-between px-4 py-4">
+            <div>
+              <p className="text-lg font-bold tracking-tight text-yellow-400">
+                CreatorGoat
+              </p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-500/60">
+                Creator OS
+              </p>
+            </div>
+
+            <details className="group relative">
+              <summary className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-yellow-500/20 bg-zinc-950 text-yellow-400 marker:content-none">
+                <Menu className="h-5 w-5 group-open:hidden" />
+                <X className="hidden h-5 w-5 group-open:block" />
+              </summary>
+
+              <div className="absolute right-0 top-14 z-50 w-[88vw] max-w-sm rounded-2xl border border-yellow-500/20 bg-black p-4 shadow-2xl">
+                <SidebarContent
+                  navItems={navItems}
+                  profile={profile}
+                  userEmail={userEmail}
+                  mobile
+                />
+              </div>
+            </details>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">{children}</main>
+      </div>
+    </div>
+  )
 }
 
 export default async function DashboardLayout({
@@ -102,118 +279,13 @@ export default async function DashboardLayout({
     profile = profileData
   }
 
-  const sidebarAccess = checkModuleAccess(profile || {}, {})
-  const trial = getTrialCountdown(profile?.trial_expires_at || null)
-
   return (
-    <div className="flex min-h-screen bg-black text-yellow-400">
-      <aside className="flex w-72 shrink-0 flex-col justify-between border-r border-yellow-500/30 bg-black p-6">
-        <div>
-          <h1 className="mb-8 text-3xl font-bold tracking-tight text-yellow-400">
-            CreatorGoat
-          </h1>
-
-          <div className="mb-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-yellow-500/60">
-              Creator OS
-            </p>
-            <p className="mt-2 text-xs text-zinc-500">{user.email}</p>
-          </div>
-
-          <nav className="flex flex-col gap-2">
-            {navItems.map((item) => {
-              const itemAccess = checkModuleAccess(profile || {}, {
-                alwaysFree: item.alwaysFree,
-                founderOnly: item.requiresFounder,
-                blockedWhenFree: item.blockedWhenFree,
-              })
-
-              if (!itemAccess.allowed) {
-                return (
-                  <Link
-                    key={item.name}
-                    href="/dashboard/billing"
-                    className="rounded-xl border border-yellow-500/10 bg-zinc-950/60 px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
-                  >
-                    {item.name} 🔒
-                  </Link>
-                )
-              }
-
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-yellow-300 transition hover:bg-yellow-400 hover:text-black"
-                >
-                  {item.name}
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              Active Plan
-            </p>
-            <p className="mt-2 text-lg font-bold text-yellow-400">
-              {getPlanDisplay(profile?.plan)}
-            </p>
-            <p className="mt-1 text-sm text-zinc-400">
-              {sidebarAccess.founderAccess
-                ? "Full creator system active"
-                : "Upgrade for premium tools"}
-            </p>
-          </div>
-
-          {!sidebarAccess.founderAccess && (
-            <div className="rounded-2xl border border-yellow-500/20 bg-zinc-950 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                Access Status
-              </p>
-
-              {sidebarAccess.normalizedPlan === "free" ? (
-                trial.expired ? (
-                  <p className="mt-2 text-sm font-semibold text-red-400">
-                    Trial expired — Upgrade Now
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm font-semibold text-yellow-400">
-                    {trial.remainingMinutes}:
-                    {trial.remainingSeconds.toString().padStart(2, "0")} left
-                  </p>
-                )
-              ) : sidebarAccess.subscriptionExpired ? (
-                <p className="mt-2 text-sm font-semibold text-red-400">
-                  Plan expired — Renew Now
-                </p>
-              ) : (
-                <p className="mt-2 text-sm font-semibold text-yellow-400">
-                  Paid access active
-                </p>
-              )}
-
-              <p className="mt-2 text-xs text-zinc-500">
-                After free trial or subscription expiration, only Marketplace browse,
-                Calendar, Translate, and Billing stay open.
-              </p>
-
-              <Link
-                href="/dashboard/billing"
-                className="mt-4 block rounded-xl bg-yellow-500 px-4 py-2 text-center text-sm font-semibold text-black transition hover:opacity-90"
-              >
-                Upgrade Now
-              </Link>
-            </div>
-          )}
-
-          <LogoutButton />
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto p-10">{children}</main>
-    </div>
+    <MobileDashboardShell
+      navItems={navItems}
+      profile={profile}
+      userEmail={user.email}
+    >
+      {children}
+    </MobileDashboardShell>
   )
 }
