@@ -12,15 +12,12 @@ function mapShippoStatus(value?: string | null) {
     return "label_created"
   }
 
-  if (
-    status.includes("transit") &&
-    !status.includes("out_for_delivery")
-  ) {
-    return "in_transit"
-  }
-
   if (status.includes("out_for_delivery")) {
     return "out_for_delivery"
+  }
+
+  if (status.includes("transit")) {
+    return "in_transit"
   }
 
   if (status.includes("delivered")) {
@@ -48,7 +45,10 @@ export async function POST(request: NextRequest) {
     const expectedToken = process.env.SHIPPO_WEBHOOK_TOKEN
 
     if (!expectedToken || token !== expectedToken) {
-      return NextResponse.json({ error: "Unauthorized webhook." }, { status: 401 })
+      return NextResponse.json(
+        { error: "Unauthorized webhook." },
+        { status: 401 }
+      )
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -65,8 +65,17 @@ export async function POST(request: NextRequest) {
 
     const payload = await request.json()
 
-    const eventType = payload?.event_type || payload?.event || ""
-    if (eventType !== "track_updated") {
+    const eventType =
+      payload?.event_type ||
+      payload?.event ||
+      payload?.type ||
+      ""
+
+    if (
+      eventType !== "track_updated" &&
+      eventType !== "transaction_updated" &&
+      eventType !== "tracking_updated"
+    ) {
       return NextResponse.json({ received: true })
     }
 
@@ -79,6 +88,12 @@ export async function POST(request: NextRequest) {
       payload?.data?.tracking_status?.status ||
       payload?.tracking_status?.status ||
       payload?.data?.tracking_status?.status_details ||
+      payload?.tracking_status?.status_details ||
+      null
+
+    const statusDate =
+      payload?.data?.tracking_status?.status_date ||
+      payload?.tracking_status?.status_date ||
       null
 
     if (!trackingNumber) {
@@ -90,12 +105,14 @@ export async function POST(request: NextRequest) {
     const updatePayload: {
       shipment_status: string
       delivered_at?: string
+      updated_at: string
     } = {
       shipment_status: nextStatus,
+      updated_at: new Date().toISOString(),
     }
 
     if (nextStatus === "delivered") {
-      updatePayload.delivered_at = new Date().toISOString()
+      updatePayload.delivered_at = statusDate || new Date().toISOString()
     }
 
     const { error } = await supabase
@@ -111,6 +128,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error("Shippo webhook error:", error)
-    return NextResponse.json({ error: "Webhook failed." }, { status: 500 })
+    return NextResponse.json(
+      { error: "Webhook failed." },
+      { status: 500 }
+    )
   }
 }

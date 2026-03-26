@@ -420,6 +420,33 @@ export default function LinksPage() {
       .slice(0, 60)
   }
 
+  async function generateUniqueSlug(baseSlug: string) {
+    const safeBase = baseSlug || `link-${Date.now()}`
+    let candidate = safeBase
+    let attempt = 0
+
+    while (attempt < 20) {
+      const { data, error } = await supabase
+        .from("links")
+        .select("id")
+        .eq("slug", candidate)
+        .maybeSingle()
+
+      if (error) {
+        throw new Error(error.message || "Could not validate slug.")
+      }
+
+      if (!data) {
+        return candidate
+      }
+
+      attempt += 1
+      candidate = `${safeBase}-${Date.now()}-${attempt}`
+    }
+
+    return `${safeBase}-${Date.now()}-${Math.floor(Math.random() * 100000)}`
+  }
+
   function makeTrackedUrl(slug: string | null) {
     if (!slug) return ""
     if (typeof window === "undefined") return ""
@@ -447,7 +474,7 @@ export default function LinksPage() {
 
       const cleanUrl = normalizeUrl(url)
       const baseSlug = makeSlug(title.trim() || cleanUrl) || `link-${Date.now()}`
-      const uniqueSlug = `${baseSlug}-${Date.now()}`
+      const uniqueSlug = await generateUniqueSlug(baseSlug)
 
       const payload = {
         user_id: user.id,

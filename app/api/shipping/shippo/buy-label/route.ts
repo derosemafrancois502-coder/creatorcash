@@ -11,6 +11,13 @@ function normalizeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+function normalizeCountry(value: unknown, fallback = "US"): string {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().toUpperCase()
+  }
+  return fallback
+}
+
 function toShippoWeightUnit(value?: string | null): "lb" | "oz" | "g" | "kg" {
   const v = (value || "lb").toLowerCase()
   if (v === "oz" || v === "g" || v === "kg" || v === "lb") return v
@@ -21,6 +28,17 @@ function toShippoDistanceUnit(value?: string | null): "in" | "cm" {
   const v = (value || "in").toLowerCase()
   if (v === "cm" || v === "in") return v
   return "in"
+}
+
+type ProductRow = {
+  id: string | number
+  name?: string | null
+  weight?: number | string | null
+  weight_unit?: string | null
+  length?: number | string | null
+  width?: number | string | null
+  height?: number | string | null
+  distance_unit?: string | null
 }
 
 export async function POST(request: NextRequest) {
@@ -98,7 +116,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1) Get order items
     const { data: orderItems, error: itemsError } = await supabase
       .from("order_items")
       .select("product_id, quantity")
@@ -117,7 +134,6 @@ export async function POST(request: NextRequest) {
 
     const productIds = orderItems.map((item) => item.product_id)
 
-    // 2) Get product shipping data
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select(`
@@ -143,12 +159,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const productMap = new Map<number, any>()
-    for (const product of products) {
-      productMap.set(Number(product.id), product)
+    const productMap = new Map<string, ProductRow>()
+    for (const product of products as ProductRow[]) {
+      productMap.set(String(product.id), product)
     }
 
-    // 3) Build parcel from product data
     let totalWeight = 0
     let maxLength = 0
     let maxWidth = 0
@@ -158,7 +173,7 @@ export async function POST(request: NextRequest) {
     let distanceUnit: "in" | "cm" = "in"
 
     for (const item of orderItems) {
-      const product = productMap.get(Number(item.product_id))
+      const product = productMap.get(String(item.product_id))
       if (!product) continue
 
       const quantity = normalizeNumber(item.quantity, 1)
@@ -172,15 +187,11 @@ export async function POST(request: NextRequest) {
       distanceUnit = toShippoDistanceUnit(product.distance_unit)
 
       totalWeight += productWeight * quantity
-
-      // Basic parcel packing heuristic:
-      // longest item determines length/width, stacked quantity increases height
       maxLength = Math.max(maxLength, productLength)
       maxWidth = Math.max(maxWidth, productWidth)
       totalHeight += productHeight * quantity
     }
 
-    // Safe minimum fallback
     if (totalWeight <= 0) totalWeight = 1
     if (maxLength <= 0) maxLength = 10
     if (maxWidth <= 0) maxWidth = 8
@@ -195,7 +206,6 @@ export async function POST(request: NextRequest) {
       mass_unit: weightUnit,
     }
 
-    // 4) Create shipment
     const shipmentResponse = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
       headers: {
@@ -211,7 +221,7 @@ export async function POST(request: NextRequest) {
           city: sellerProfile.city,
           state: sellerProfile.state,
           zip: sellerProfile.postal_code,
-          country: sellerProfile.country,
+          country: normalizeCountry(sellerProfile.country),
           phone: sellerProfile.phone || "",
           email: sellerProfile.email || "",
         },
@@ -223,7 +233,7 @@ export async function POST(request: NextRequest) {
           city: orderAddress.city,
           state: orderAddress.state,
           zip: orderAddress.postal_code,
-          country: orderAddress.country,
+          country: normalizeCountry(orderAddress.country),
           phone: orderAddress.phone || "",
           email: orderAddress.email || "",
         },
@@ -264,12 +274,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // MVP: choose cheapest rate
     const selectedRate = [...rates].sort(
       (a, b) => normalizeNumber(a?.amount) - normalizeNumber(b?.amount)
     )[0]
 
-    // 5) Buy label
+    if (!selectedRate?.object_id) {
+      return NextResponse.json(
+        { error: "No valid Shippo rate object_id found." },
+        { status: 400 }
+      )
+    }
+
     const transactionResponse = await fetch("https://api.goshippo.com/transactions/", {
       method: "POST",
       headers: {
@@ -337,6 +352,7 @@ export async function POST(request: NextRequest) {
         provider_rate_id: selectedRate.object_id,
         provider_transaction_id: providerTransactionId,
         shipping_cost: shippingCost,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", shipmentRow.id)
 

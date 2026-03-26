@@ -316,17 +316,29 @@ export default function SellerOrdersPage() {
     }
   }
 
-  async function printLabel(orderId: string) {
+  async function createLabel(orderId: string) {
     try {
       setLabelLoadingId(orderId)
 
       const selected = orders.find((o) => String(o.order.id) === orderId)
       if (!selected) return
 
-      const res = await fetch("/api/shippo/label", {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const accessToken = session?.access_token || ""
+
+      if (!accessToken) {
+        alert("Please sign in again.")
+        return
+      }
+
+      const res = await fetch("/api/shippo/create-shipment", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           orderId,
@@ -352,6 +364,24 @@ export default function SellerOrdersPage() {
     } finally {
       setLabelLoadingId(null)
     }
+  }
+
+  function printLabel(orderId: string) {
+    const selected = orders.find((o) => String(o.order.id) === orderId)
+    if (!selected) return
+
+    const labelUrl =
+      selected.order.shippo_label_url ??
+      selected.shipment?.label_url ??
+      selected.shipment?.shippo_label_url ??
+      null
+
+    if (!labelUrl) {
+      alert("No label found yet. Create the label first.")
+      return
+    }
+
+    window.open(labelUrl, "_blank", "noopener,noreferrer")
   }
 
   const filteredOrders = orders.filter((entry) => {
@@ -410,7 +440,7 @@ export default function SellerOrdersPage() {
             </div>
             <h1 className="text-2xl font-bold">Manage Orders</h1>
             <p className="mt-1 text-sm text-white/60">
-              Review purchases, update shipment status, and print shipping labels.
+              Review purchases, update shipment status, create labels, and print shipping labels.
             </p>
           </div>
 
@@ -452,7 +482,7 @@ export default function SellerOrdersPage() {
             title="Shipped"
             value={String(
               orders.filter((o) =>
-                String(o.shipment?.status ?? "").toLowerCase().includes("shipped")
+                String(o.shipment?.status ?? o.order.shipping_status ?? "").toLowerCase().includes("shipped")
               ).length
             )}
             icon={<Truck className="h-5 w-5" />}
@@ -480,7 +510,7 @@ export default function SellerOrdersPage() {
                 {filteredOrders.map((entry) => {
                   const isSelected = String(entry.order.id) === String(selectedOrder?.order.id)
                   const shipmentStatus = normalizeStatus(
-                    entry.shipment?.status ?? entry.order.status ?? "pending"
+                    entry.shipment?.status ?? entry.order.shipping_status ?? entry.order.status ?? "pending"
                   )
 
                   return (
@@ -568,8 +598,15 @@ export default function SellerOrdersPage() {
                       </p>
                       <p>
                         Shipment:{" "}
-                        {text(selectedOrder.shipment?.status ?? selectedOrder.order.status)}
+                        {text(
+                          selectedOrder.shipment?.status ??
+                            selectedOrder.order.shipping_status ??
+                            selectedOrder.order.status
+                        )}
                       </p>
+                      {selectedOrder.order.tracking_number ? (
+                        <p>Tracking: {text(selectedOrder.order.tracking_number)}</p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -595,14 +632,22 @@ export default function SellerOrdersPage() {
                     </button>
 
                     <button
-                      onClick={() => printLabel(String(selectedOrder.order.id))}
+                      onClick={() => createLabel(String(selectedOrder.order.id))}
                       disabled={labelLoadingId === String(selectedOrder.order.id)}
                       className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-60"
                     >
-                      <Printer className="h-4 w-4" />
+                      <Truck className="h-4 w-4" />
                       {labelLoadingId === String(selectedOrder.order.id)
-                        ? "Generating..."
-                        : "Print Label"}
+                        ? "Creating Label..."
+                        : "Create Label"}
+                    </button>
+
+                    <button
+                      onClick={() => printLabel(String(selectedOrder.order.id))}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/5"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Print Label
                     </button>
                   </div>
                 </div>

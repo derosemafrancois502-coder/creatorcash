@@ -4,11 +4,11 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import LogoutButton from "@/components/auth/LogoutButton"
 import MobileSidebarDrawer from "@/components/dashboard/MobileSidebarDrawer"
+import DashboardRouteGuard from "@/components/dashboard/DashboardRouteGuard"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import {
   checkModuleAccess,
   getPlanDisplay,
-  getTrialCountdown,
 } from "@/lib/access/guard"
 
 type NavItem = {
@@ -20,34 +20,39 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { name: "🏠 Dashboard", href: "/dashboard", alwaysFree: true },
+  { name: "🏠 Dashboard", href: "/dashboard" },
 
-  { name: "📊 Analytics", href: "/dashboard/analytics", blockedWhenFree: true },
+  { name: "📊 Analytics", href: "/dashboard/analytics" },
 
-  { name: "🪝 Hooks", href: "/dashboard/hooks", blockedWhenFree: true },
-  { name: "✍️ Captions", href: "/dashboard/captions", blockedWhenFree: true },
-  { name: "🎬 Scripts", href: "/dashboard/scripts", blockedWhenFree: true },
-  { name: "💬 Replies", href: "/dashboard/replies", blockedWhenFree: true },
+  { name: "🪝 Hooks", href: "/dashboard/hooks" },
+  { name: "✍️ Captions", href: "/dashboard/captions" },
+  { name: "🎬 Scripts", href: "/dashboard/scripts" },
+  { name: "💬 Replies", href: "/dashboard/replies" },
 
-  { name: "📝 Product Writer", href: "/dashboard/product-writer", blockedWhenFree: true },
-  { name: "📈 Growth", href: "/dashboard/growth", blockedWhenFree: true },
-  { name: "📧 Email", href: "/dashboard/email", blockedWhenFree: true },
-  { name: "🎓 Course Builder", href: "/dashboard/course", blockedWhenFree: true },
+  { name: "📝 Product Writer", href: "/dashboard/product-writer" },
+  { name: "📈 Growth", href: "/dashboard/growth" },
+  { name: "📧 Email", href: "/dashboard/email" },
+  { name: "🎓 Course Builder", href: "/dashboard/course" },
 
+  // free user pa dwe gen video menm pandan trial
   { name: "🎥 Video Studio", href: "/dashboard/video-studio", blockedWhenFree: true },
 
-  { name: "🔗 Links", href: "/dashboard/links", blockedWhenFree: true },
-  { name: "👥 Leads", href: "/dashboard/leads", blockedWhenFree: true },
-  { name: "💬 Messages", href: "/dashboard/messages", blockedWhenFree: true },
+  { name: "🔗 Links", href: "/dashboard/links" },
+  { name: "👥 Leads", href: "/dashboard/leads" },
+  { name: "💬 Messages", href: "/dashboard/messages" },
 
-  { name: "🧠 COS", href: "/dashboard/cos", requiresFounder: true, blockedWhenFree: true },
+  // founder / premium side
+  { name: "🧠 COS", href: "/dashboard/cos", requiresFounder: true },
 
+  // marketplace browse ka rete deyò
   { name: "🛍️ Marketplace", href: "/marketplace", alwaysFree: true },
 
   { name: "📅 Calendar", href: "/dashboard/calendar", alwaysFree: true },
   { name: "🌍 Translate", href: "/dashboard/translate", alwaysFree: true },
 
   { name: "💳 Billing", href: "/dashboard/billing", alwaysFree: true },
+
+  // free user pa dwe antre settings pandan trial si se sa ou vle
   { name: "⚙️ Settings", href: "/dashboard/settings", blockedWhenFree: true },
 ]
 
@@ -66,8 +71,15 @@ function SidebarContent({
   profile: ProfileRow | null
   userEmail?: string | null
 }) {
-  const sidebarAccess = checkModuleAccess(profile || {}, {})
-  const trial = getTrialCountdown(profile?.trial_expires_at || null)
+  const visibleNavItems = navItems.filter((item) => {
+    const access = checkModuleAccess(profile || {}, {
+      alwaysFree: item.alwaysFree,
+      founderOnly: item.requiresFounder,
+      blockedWhenFree: item.blockedWhenFree,
+    })
+
+    return access.allowed
+  })
 
   return (
     <div className="flex h-full flex-col justify-between">
@@ -82,7 +94,7 @@ function SidebarContent({
         </div>
 
         <nav className="flex flex-col gap-2">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
@@ -97,7 +109,7 @@ function SidebarContent({
       <div className="space-y-4">
         <div className="rounded-xl border border-yellow-500/20 p-4">
           <p className="text-xs text-zinc-500">Plan</p>
-          <p className="text-yellow-400 font-bold">
+          <p className="font-bold text-yellow-400">
             {getPlanDisplay(profile?.plan)}
           </p>
         </div>
@@ -119,30 +131,37 @@ function MobileDashboardShell({
   profile: ProfileRow | null
   userEmail?: string | null
 }) {
+  const visibleNavItems = navItems.filter((item) => {
+    const access = checkModuleAccess(profile || {}, {
+      alwaysFree: item.alwaysFree,
+      founderOnly: item.requiresFounder,
+      blockedWhenFree: item.blockedWhenFree,
+    })
+
+    return access.allowed
+  })
+
   return (
     <div className="flex min-h-screen bg-black text-yellow-400">
-      
-      {/* DESKTOP SIDEBAR */}
-      <aside className="hidden lg:flex w-72 p-6 border-r border-yellow-500/30">
+      <aside className="hidden w-72 border-r border-yellow-500/30 p-6 lg:flex">
         <SidebarContent
-          navItems={navItems}
+          navItems={visibleNavItems}
           profile={profile}
           userEmail={userEmail}
         />
       </aside>
 
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col">
-
-        {/* MOBILE HEADER */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-4 border-b border-yellow-500/20">
-          <h1 className="text-yellow-400 font-bold">CreatorGoat</h1>
-
-          {/* 🔥 IMPORTANT FIX */}
-          <MobileSidebarDrawer navItems={navItems} />
+      <div className="flex flex-1 flex-col">
+        <header className="flex items-center justify-between border-b border-yellow-500/20 px-4 py-4 lg:hidden">
+          <h1 className="font-bold text-yellow-400">CreatorGoat</h1>
+          <MobileSidebarDrawer navItems={visibleNavItems} />
         </header>
 
-        <main className="p-4">{children}</main>
+        <main className="p-4">
+          <DashboardRouteGuard profile={profile}>
+            {children}
+          </DashboardRouteGuard>
+        </main>
       </div>
     </div>
   )
@@ -185,7 +204,9 @@ export default async function DashboardLayout({
     .eq("id", user.id)
     .maybeSingle()
 
-  if (data) profile = data
+  if (data) {
+    profile = data
+  }
 
   return (
     <MobileDashboardShell

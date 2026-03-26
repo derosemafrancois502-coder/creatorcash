@@ -4,9 +4,10 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get("authorization")
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.replace("Bearer ", "").trim()
-      : ""
+    const bearerToken =
+      authHeader?.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "").trim()
+        : ""
 
     if (!bearerToken) {
       return NextResponse.json(
@@ -41,24 +42,24 @@ export async function GET(req: Request) {
     const selectFields =
       "id, plan, trial_expires_at, subscription_expires_at, extra_video_credits, videos_used"
 
-    const byId = await supabaseAdmin
+    const { data: byIdData, error: byIdError } = await supabaseAdmin
       .from("profiles")
       .select(selectFields)
       .eq("id", user.id)
       .maybeSingle()
 
-    if (byId.error) {
-      console.error("BILLING PROFILE BY ID ERROR:", byId.error)
+    if (byIdError) {
+      console.error("BILLING PROFILE BY ID ERROR:", byIdError)
     }
 
-    if (byId.data) {
+    if (byIdData) {
       return NextResponse.json({
         success: true,
-        profile: byId.data,
+        profile: byIdData,
       })
     }
 
-    const byUserId = await supabaseAdmin
+    const { data: byUserIdData, error: byUserIdError } = await supabaseAdmin
       .from("profiles")
       .select(
         "id, user_id, plan, trial_expires_at, subscription_expires_at, extra_video_credits, videos_used"
@@ -66,24 +67,35 @@ export async function GET(req: Request) {
       .eq("user_id", user.id)
       .maybeSingle()
 
-    if (byUserId.error) {
-      console.error("BILLING PROFILE BY USER_ID ERROR:", byUserId.error)
+    if (byUserIdError) {
+      console.error("BILLING PROFILE BY USER_ID ERROR:", byUserIdError)
     }
 
-    if (byUserId.data) {
+    if (byUserIdData) {
       return NextResponse.json({
         success: true,
-        profile: byUserId.data,
+        profile: {
+          id: byUserIdData.id ?? byUserIdData.user_id ?? user.id,
+          plan: byUserIdData.plan ?? "free",
+          trial_expires_at: byUserIdData.trial_expires_at ?? null,
+          subscription_expires_at: byUserIdData.subscription_expires_at ?? null,
+          extra_video_credits: byUserIdData.extra_video_credits ?? 0,
+          videos_used: byUserIdData.videos_used ?? 0,
+        },
       })
     }
 
-    return NextResponse.json(
-      {
-        error: "Billing profile not found.",
-        userId: user.id,
+    return NextResponse.json({
+      success: true,
+      profile: {
+        id: user.id,
+        plan: "free",
+        trial_expires_at: null,
+        subscription_expires_at: null,
+        extra_video_credits: 0,
+        videos_used: 0,
       },
-      { status: 404 }
-    )
+    })
   } catch (error) {
     console.error("BILLING PROFILE API ERROR:", error)
 

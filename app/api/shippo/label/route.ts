@@ -12,7 +12,11 @@ function getServerSupabase() {
   return createClient(url, serviceRole)
 }
 
-function pick(obj: Record<string, any> | null | undefined, keys: string[], fallback = "") {
+function pick(
+  obj: Record<string, any> | null | undefined,
+  keys: string[],
+  fallback = ""
+) {
   if (!obj) return fallback
   for (const key of keys) {
     const value = obj[key]
@@ -24,13 +28,10 @@ function pick(obj: Record<string, any> | null | undefined, keys: string[], fallb
 }
 
 async function shippoFetch(path: string, init: RequestInit) {
-  const token =
-    process.env.SHIPPO_API_KEY ||
-    process.env.SHIPPO_TOKEN ||
-    process.env.SHIPPO_SECRET_KEY
+  const token = process.env.SHIPPO_API_TOKEN
 
   if (!token) {
-    throw new Error("Missing Shippo API key in env.")
+    throw new Error("Missing SHIPPO_API_TOKEN in env.")
   }
 
   const res = await fetch(`https://api.goshippo.com${path}`, {
@@ -43,6 +44,7 @@ async function shippoFetch(path: string, init: RequestInit) {
   })
 
   const data = await res.json()
+
   if (!res.ok) {
     throw new Error(data?.detail || data?.error || "Shippo request failed.")
   }
@@ -131,20 +133,23 @@ export async function POST(req: Request) {
       city: pick(shippingProfile, ["city"]),
       state: pick(shippingProfile, ["state", "province"]),
       zip: pick(shippingProfile, ["zip", "postal_code"]),
-      country: pick(shippingProfile, ["country"], "US"),
+      country: pick(shippingProfile, ["country"], "US").toUpperCase(),
       phone: pick(shippingProfile, ["phone"]),
       email: pick(shippingProfile, ["email"]),
     }
 
     const addressTo = {
-      name: pick(address, ["name"], `${pick(address, ["first_name"])} ${pick(address, ["last_name"])}`.trim() || "Customer"),
+      name:
+        pick(address, ["name"]) ||
+        `${pick(address, ["first_name"])} ${pick(address, ["last_name"])}`.trim() ||
+        "Customer",
       company: pick(address, ["company"]),
       street1: pick(address, ["street1", "address1", "line1"]),
       street2: pick(address, ["street2", "address2", "line2"]),
       city: pick(address, ["city"]),
       state: pick(address, ["state", "province"]),
       zip: pick(address, ["zip", "postal_code"]),
-      country: pick(address, ["country"], "US"),
+      country: pick(address, ["country"], "US").toUpperCase(),
       phone: pick(address, ["phone"]),
       email: pick(address, ["email"]),
     }
@@ -185,6 +190,7 @@ export async function POST(req: Request) {
     })
 
     const rates = Array.isArray(shippoShipment?.rates) ? shippoShipment.rates : []
+
     if (rates.length === 0) {
       return NextResponse.json(
         { error: "No shipping rates returned by Shippo." },
@@ -193,8 +199,17 @@ export async function POST(req: Request) {
     }
 
     const cheapestRate = [...rates].sort(
-      (a, b) => Number(a.amount_local ?? a.amount ?? 0) - Number(b.amount_local ?? b.amount ?? 0)
+      (a, b) =>
+        Number(a.amount_local ?? a.amount ?? 0) -
+        Number(b.amount_local ?? b.amount ?? 0)
     )[0]
+
+    if (!cheapestRate?.object_id) {
+      return NextResponse.json(
+        { error: "No valid Shippo rate found." },
+        { status: 400 }
+      )
+    }
 
     const transaction = await shippoFetch("/transactions/", {
       method: "POST",
@@ -216,32 +231,28 @@ export async function POST(req: Request) {
       transaction?.tracking_num ||
       null
 
+    const updatePayload = {
+      status: "label_created",
+      carrier: cheapestRate?.provider ?? cheapestRate?.carrier ?? null,
+      service: cheapestRate?.servicelevel?.name ?? cheapestRate?.servicelevel ?? null,
+      tracking_number: trackingNumber,
+      label_url: labelUrl,
+      shippo_shipment_id: shippoShipment?.object_id ?? null,
+      shippo_transaction_id: transaction?.object_id ?? null,
+      shipping_cost: Number(cheapestRate?.amount_local ?? cheapestRate?.amount ?? 0),
+      updated_at: new Date().toISOString(),
+    }
+
     if (shipment?.id) {
       await supabase
         .from("shipments")
-        .update({
-          status: "label_created",
-          carrier: cheapestRate?.provider ?? cheapestRate?.carrier ?? null,
-          service: cheapestRate?.servicelevel?.name ?? cheapestRate?.servicelevel ?? null,
-          tracking_number: trackingNumber,
-          label_url: labelUrl,
-          shippo_shipment_id: shippoShipment?.object_id ?? null,
-          shippo_transaction_id: transaction?.object_id ?? null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", shipment.id)
     } else {
       await supabase.from("shipments").insert({
         order_id: orderId,
-        status: "label_created",
-        carrier: cheapestRate?.provider ?? cheapestRate?.carrier ?? null,
-        service: cheapestRate?.servicelevel?.name ?? cheapestRate?.servicelevel ?? null,
-        tracking_number: trackingNumber,
-        label_url: labelUrl,
-        shippo_shipment_id: shippoShipment?.object_id ?? null,
-        shippo_transaction_id: transaction?.object_id ?? null,
+        ...updatePayload,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       })
     }
 

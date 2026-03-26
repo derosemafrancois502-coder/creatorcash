@@ -13,9 +13,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
-    const carrier = body?.carrier?.trim()
-    const trackingNumber = body?.trackingNumber?.trim()
+    const body = await request.json().catch(() => ({}))
+    const carrier =
+      typeof body?.carrier === "string" ? body.carrier.trim() : ""
+    const trackingNumber =
+      typeof body?.trackingNumber === "string"
+        ? body.trackingNumber.trim()
+        : ""
 
     if (!carrier || !trackingNumber) {
       return NextResponse.json(
@@ -37,11 +41,17 @@ export async function POST(request: NextRequest) {
       }),
     })
 
-    const data = await response.json()
+    const data = await response.json().catch(() => null)
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: data?.detail || data?.error || "Failed to register tracking." },
+        {
+          error:
+            data?.detail ||
+            data?.error ||
+            data?.messages?.[0]?.text ||
+            "Failed to register tracking.",
+        },
         { status: 500 }
       )
     }

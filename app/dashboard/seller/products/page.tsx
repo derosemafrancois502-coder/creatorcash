@@ -24,6 +24,7 @@ import {
   Video,
   Boxes,
   Minus,
+  Trash2,
 } from "lucide-react"
 
 type Product = {
@@ -98,6 +99,7 @@ export default function SellerProductsPage() {
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [userId, setUserId] = useState<string | null>(null)
   const [shop, setShop] = useState<Shop | null>(null)
@@ -635,6 +637,44 @@ export default function SellerProductsPage() {
     await refreshProducts(userId)
   }
 
+  async function handleDeleteProduct(productId: string) {
+    if (!userId) return
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this product? This action cannot be undone."
+    )
+
+    if (!confirmed) return
+
+    try {
+      setDeletingId(productId)
+
+      const { error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", productId)
+        .eq("user_id", userId)
+
+      if (error) {
+        alert(error.message)
+        return
+      }
+
+      await refreshProducts(userId)
+
+      if (selectedId === productId) {
+        resetForm()
+      }
+
+      alert("Product deleted.")
+    } catch (error) {
+      console.error(error)
+      alert("Could not delete product.")
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   function getInventoryCount(product: Product) {
     return Number(product.inventory_count ?? 0)
   }
@@ -934,6 +974,15 @@ export default function SellerProductsPage() {
                               className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                             >
                               Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              disabled={deletingId === product.id}
+                              className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {deletingId === product.id ? "Deleting..." : "Delete"}
                             </button>
 
                             {product.status === "published" ? (

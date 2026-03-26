@@ -1,12 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import {
-  checkModuleAccess,
-  type AccessProfile,
-} from "@/lib/access/guard"
+import { useMemo, useState } from "react"
 
 const languages = [
   "English",
@@ -84,9 +78,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 export default function HooksPage() {
-  const router = useRouter()
-  const supabase = createClient()
-
   const [topic, setTopic] = useState("")
   const [platform, setPlatform] = useState("TikTok")
   const [audience, setAudience] = useState("Entrepreneurs")
@@ -94,10 +85,6 @@ export default function HooksPage() {
   const [style, setStyle] = useState("Viral")
   const [result, setResult] = useState("")
   const [loading, setLoading] = useState(false)
-
-  const [accessLoading, setAccessLoading] = useState(true)
-  const [accessAllowed, setAccessAllowed] = useState(true)
-  const [accessMessage, setAccessMessage] = useState("")
 
   const resultCount = useMemo(() => {
     if (!result.trim()) return 0
@@ -107,73 +94,8 @@ export default function HooksPage() {
       .filter(Boolean).length
   }, [result])
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadAccess() {
-      try {
-        setAccessLoading(true)
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          if (!cancelled) {
-            setAccessAllowed(false)
-            setAccessMessage("Please log in first.")
-          }
-          return
-        }
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("plan, trial_expires_at, subscription_expires_at")
-          .eq("id", user.id)
-          .single()
-
-        if (error) {
-          if (!cancelled) {
-            setAccessAllowed(false)
-            setAccessMessage("Unable to verify access right now.")
-          }
-          return
-        }
-
-        const access = checkModuleAccess((data || {}) as AccessProfile, {
-          blockedWhenFree: true,
-        })
-
-        if (!cancelled) {
-          setAccessAllowed(access.allowed)
-          setAccessMessage(access.reason)
-        }
-      } catch {
-        if (!cancelled) {
-          setAccessAllowed(false)
-          setAccessMessage("Unable to verify access right now.")
-        }
-      } finally {
-        if (!cancelled) {
-          setAccessLoading(false)
-        }
-      }
-    }
-
-    loadAccess()
-
-    return () => {
-      cancelled = true
-    }
-  }, [supabase])
-
   async function handleGenerate() {
     try {
-      if (!accessAllowed) {
-        setResult("Access locked. Upgrade Now.")
-        return
-      }
-
       setLoading(true)
       setResult("")
 
@@ -206,53 +128,6 @@ export default function HooksPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (accessLoading) {
-    return (
-      <div className="w-full space-y-8">
-        <section className="rounded-[32px] border border-yellow-500/20 bg-zinc-950 p-8">
-          <h1 className="text-4xl font-bold text-yellow-400">Hooks Generator</h1>
-          <p className="mt-4 text-zinc-400">Checking access...</p>
-        </section>
-      </div>
-    )
-  }
-
-  if (!accessAllowed) {
-    return (
-      <div className="w-full space-y-8">
-        <section className="rounded-[32px] border border-yellow-500/20 bg-zinc-950 p-8">
-          <div className="mb-4 inline-flex items-center rounded-full border border-red-500/20 bg-red-500/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-red-300">
-            Access Locked
-          </div>
-
-          <h1 className="text-4xl font-bold tracking-tight text-yellow-400 sm:text-5xl">
-            Hooks Generator
-          </h1>
-
-          <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
-            {accessMessage || "This module is locked. Upgrade Now to continue."}
-          </p>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              onClick={() => router.push("/dashboard/billing")}
-              className="rounded-2xl bg-yellow-400 px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-            >
-              Upgrade Now
-            </button>
-
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="rounded-2xl border border-yellow-400 px-5 py-3 text-sm font-semibold text-yellow-400 transition hover:bg-yellow-400 hover:text-black"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </section>
-      </div>
-    )
   }
 
   return (

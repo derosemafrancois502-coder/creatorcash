@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 type ThemeType = "dark" | "luxury"
-type VerificationStatus = "unverified" | "pending" | "verified" | "rejected"
 
 type ProfileRow = {
   id: string
@@ -16,37 +15,23 @@ type ProfileRow = {
   phone: string | null
   address: string | null
   avatar_url: string | null
-
   theme: ThemeType | null
   currency: string | null
   language: string | null
-
   notifications: boolean | null
   marketing_emails: boolean | null
   auto_publish_links: boolean | null
   public_profile: boolean | null
-
   instagram_url: string | null
   tiktok_url: string | null
   youtube_url: string | null
   website_url: string | null
-
   stripe_account_id: string | null
   stripe_charges_enabled: boolean | null
-
-  seller_verification_status: VerificationStatus | null
-  id_document_type: string | null
-  id_document_number: string | null
-  proof_of_address_url: string | null
-
   role: string | null
   plan: string | null
-
   videos_used: number | null
   extra_video_credits: number | null
-
-  created_at: string | null
-  updated_at: string | null
 }
 
 type SettingsData = {
@@ -54,37 +39,25 @@ type SettingsData = {
   username: string
   brandName: string
   bio: string
-
   email: string
   phoneNumber: string
   address: string
   profilePhoto: string
-
   theme: ThemeType
   currency: string
   language: string
-
   notifications: boolean
   marketingEmails: boolean
   autoPublishLinks: boolean
   publicProfile: boolean
-
   instagramUrl: string
   tiktokUrl: string
   youtubeUrl: string
   websiteUrl: string
-
   stripeAccountId: string
   stripeChargesEnabled: boolean
-
-  sellerVerificationStatus: VerificationStatus
-  idDocumentType: string
-  idDocumentNumber: string
-  proofOfAddressUrl: string
-
   role: string
   plan: string
-
   videosUsed: number
   extraVideoCredits: number
 }
@@ -94,44 +67,31 @@ const defaultSettings: SettingsData = {
   username: "",
   brandName: "CreatorGoat",
   bio: "",
-
   email: "",
   phoneNumber: "",
   address: "",
   profilePhoto: "",
-
   theme: "luxury",
   currency: "USD",
   language: "English",
-
   notifications: true,
   marketingEmails: true,
   autoPublishLinks: false,
   publicProfile: true,
-
   instagramUrl: "",
   tiktokUrl: "",
   youtubeUrl: "",
   websiteUrl: "",
-
   stripeAccountId: "",
   stripeChargesEnabled: false,
-
-  sellerVerificationStatus: "unverified",
-  idDocumentType: "",
-  idDocumentNumber: "",
-  proofOfAddressUrl: "",
-
   role: "",
   plan: "starter",
-
   videosUsed: 0,
   extraVideoCredits: 0,
 }
 
 function getPlanVideoLimit(plan: string) {
   const value = (plan || "").toLowerCase().trim()
-
   if (value === "starter") return 3
   if (value === "pro") return 5
   if (value === "founder" || value === "founder_elite") return 10
@@ -139,25 +99,27 @@ function getPlanVideoLimit(plan: string) {
 }
 
 export default function SettingsPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const [profileId, setProfileId] = useState<string>("")
+  const [profileId, setProfileId] = useState("")
+  const [currentUserId, setCurrentUserId] = useState("")
   const [settings, setSettings] = useState<SettingsData>(defaultSettings)
-  const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [checkingStripe, setCheckingStripe] = useState(false)
-  const [connectLoading, setConnectLoading] = useState(false)
-  const [subscriptionLoading, setSubscriptionLoading] = useState<string>("")
-  const [creditsLoading, setCreditsLoading] = useState<string>("")
-  const [currentUserId, setCurrentUserId] = useState<string>("")
+  const [saved, setSaved] = useState(false)
   const [pageError, setPageError] = useState("")
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [connectLoading, setConnectLoading] = useState(false)
+  const [checkingStripe, setCheckingStripe] = useState(false)
+  const [subscriptionLoading, setSubscriptionLoading] = useState("")
+  const [creditsLoading, setCreditsLoading] = useState("")
 
-  async function getAccessToken() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    return session?.access_token || ""
+  function updateField<K extends keyof SettingsData>(key: K, value: SettingsData[K]) {
+    setSaved(false)
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
   }
 
   function applyProfile(row: ProfileRow) {
@@ -168,37 +130,25 @@ export default function SettingsPage() {
       username: row.username || "",
       brandName: row.brand_name || "CreatorGoat",
       bio: row.bio || "",
-
       email: row.email || "",
       phoneNumber: row.phone || "",
       address: row.address || "",
       profilePhoto: row.avatar_url || "",
-
-      theme: (row.theme as ThemeType) || "luxury",
+      theme: row.theme || "luxury",
       currency: row.currency || "USD",
       language: row.language || "English",
-
       notifications: row.notifications ?? true,
       marketingEmails: row.marketing_emails ?? true,
       autoPublishLinks: row.auto_publish_links ?? false,
       publicProfile: row.public_profile ?? true,
-
       instagramUrl: row.instagram_url || "",
       tiktokUrl: row.tiktok_url || "",
       youtubeUrl: row.youtube_url || "",
       websiteUrl: row.website_url || "",
-
       stripeAccountId: row.stripe_account_id || "",
       stripeChargesEnabled: row.stripe_charges_enabled ?? false,
-
-      sellerVerificationStatus: row.seller_verification_status || "unverified",
-      idDocumentType: row.id_document_type || "",
-      idDocumentNumber: row.id_document_number || "",
-      proofOfAddressUrl: row.proof_of_address_url || "",
-
       role: row.role || "",
       plan: row.plan || "starter",
-
       videosUsed: row.videos_used ?? 0,
       extraVideoCredits: row.extra_video_credits ?? 0,
     })
@@ -242,10 +192,6 @@ export default function SettingsPage() {
       website_url: "",
       stripe_account_id: "",
       stripe_charges_enabled: false,
-      seller_verification_status: "unverified",
-      id_document_type: "",
-      id_document_number: "",
-      proof_of_address_url: "",
       plan: "starter",
       videos_used: 0,
       extra_video_credits: 0,
@@ -275,86 +221,144 @@ export default function SettingsPage() {
 
       if (!session?.user) {
         setPageError("Please log in to view settings.")
-        setLoading(false)
         return
       }
 
-      const user = session.user
-      setCurrentUserId(user.id)
+      setCurrentUserId(session.user.id)
 
-      const profile = await ensureProfileForUser(user.id, user.email || null)
+      const profile = await ensureProfileForUser(
+        session.user.id,
+        session.user.email || null
+      )
+
       applyProfile(profile)
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Failed to load settings.")
+      setPageError(
+        error instanceof Error ? error.message : "Failed to load settings."
+      )
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadProfile()
+    void loadProfile()
   }, [])
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const stripeStatus = params.get("stripe")
-    const subscriptionStatus = params.get("subscription")
-    const creditsStatus = params.get("credits")
+  async function getAccessToken() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    if (subscriptionStatus === "success" || creditsStatus === "success") {
-      loadProfile()
-    }
-
-    async function verifyStripeStatus(stripeAccountId: string) {
-      try {
-        setCheckingStripe(true)
-
-        const response = await fetch("/api/stripe/status", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            stripeAccountId,
-          }),
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to verify Stripe account.")
-        }
-
-        const isReady = Boolean(data?.chargesEnabled) && Boolean(data?.payoutsEnabled)
-
-        setSettings((prev) => ({
-          ...prev,
-          stripeAccountId: data?.accountId || prev.stripeAccountId,
-          stripeChargesEnabled: isReady,
-        }))
-      } catch (error) {
-        console.error("Stripe verification failed:", error)
-      } finally {
-        setCheckingStripe(false)
-      }
-    }
-
-    if (stripeStatus === "return" && settings.stripeAccountId) {
-      setSaved(false)
-      verifyStripeStatus(settings.stripeAccountId)
-    }
-  }, [settings.stripeAccountId])
-
-  function updateField<K extends keyof SettingsData>(key: K, value: SettingsData[K]) {
-    setSaved(false)
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
+    return session?.access_token || ""
   }
 
-  async function saveSettings(e?: React.FormEvent<HTMLFormElement>) {
-    e?.preventDefault()
+  async function handleAvatarUpload(file: File) {
+    try {
+      setUploadingAvatar(true)
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.user) {
+        alert("Please log in first.")
+        return
+      }
+
+      const userId = session.user.id
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
+      const safeExtension = extension === "jpeg" ? "jpg" : extension
+      const filePath = `${userId}/avatar-${Date.now()}.${safeExtension}`
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          upsert: true,
+          cacheControl: "3600",
+          contentType: file.type || "image/jpeg",
+        })
+
+      if (uploadError) {
+        throw new Error(uploadError.message || "Failed to upload photo.")
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath)
+
+      const publicUrl = publicUrlData?.publicUrl || ""
+
+      if (!publicUrl) {
+        throw new Error("Could not get public avatar URL.")
+      }
+
+      updateField("profilePhoto", publicUrl)
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId)
+
+      if (profileError) {
+        throw new Error(profileError.message || "Failed to save avatar URL.")
+      }
+
+      setSaved(true)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to upload photo.")
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
+  async function onAvatarFileChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please choose an image.")
+      e.target.value = ""
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image too large. Max 5MB.")
+      e.target.value = ""
+      return
+    }
+
+    await handleAvatarUpload(file)
+    e.target.value = ""
+  }
+
+  async function removeProfilePhoto() {
+    if (!profileId) return
+
+    try {
+      updateField("profilePhoto", "")
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", profileId)
+
+      if (error) {
+        throw new Error(error.message || "Failed to remove profile photo.")
+      }
+
+      setSaved(true)
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : "Failed to remove profile photo."
+      )
+    }
+  }
+
+  async function saveSettings(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
 
     if (!profileId) {
       alert("No profile loaded yet.")
@@ -366,34 +370,23 @@ export default function SettingsPage() {
       username: settings.username || null,
       brand_name: settings.brandName || null,
       bio: settings.bio || null,
-
       email: settings.email || null,
       phone: settings.phoneNumber || null,
       address: settings.address || null,
       avatar_url: settings.profilePhoto || null,
-
       theme: settings.theme,
       currency: settings.currency,
       language: settings.language,
-
       notifications: settings.notifications,
       marketing_emails: settings.marketingEmails,
       auto_publish_links: settings.autoPublishLinks,
       public_profile: settings.publicProfile,
-
       instagram_url: settings.instagramUrl || null,
       tiktok_url: settings.tiktokUrl || null,
       youtube_url: settings.youtubeUrl || null,
       website_url: settings.websiteUrl || null,
-
       stripe_account_id: settings.stripeAccountId || null,
       stripe_charges_enabled: settings.stripeChargesEnabled,
-
-      seller_verification_status: settings.sellerVerificationStatus,
-      id_document_type: settings.idDocumentType || null,
-      id_document_number: settings.idDocumentNumber || null,
-      proof_of_address_url: settings.proofOfAddressUrl || null,
-
       plan: settings.plan || "starter",
       videos_used: settings.videosUsed,
       extra_video_credits: settings.extraVideoCredits,
@@ -442,10 +435,7 @@ export default function SettingsPage() {
       }
 
       if (data?.accountId) {
-        setSettings((prev) => ({
-          ...prev,
-          stripeAccountId: data.accountId,
-        }))
+        updateField("stripeAccountId", data.accountId)
       }
 
       if (data?.url) {
@@ -485,11 +475,8 @@ export default function SettingsPage() {
 
       const isReady = Boolean(data?.chargesEnabled) && Boolean(data?.payoutsEnabled)
 
-      setSettings((prev) => ({
-        ...prev,
-        stripeAccountId: data?.accountId || prev.stripeAccountId,
-        stripeChargesEnabled: isReady,
-      }))
+      updateField("stripeAccountId", data?.accountId || settings.stripeAccountId)
+      updateField("stripeChargesEnabled", isReady)
 
       if (profileId) {
         await supabase
@@ -501,7 +488,9 @@ export default function SettingsPage() {
           .eq("id", profileId)
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to check Stripe status.")
+      alert(
+        error instanceof Error ? error.message : "Failed to check Stripe status."
+      )
     } finally {
       setCheckingStripe(false)
     }
@@ -524,22 +513,20 @@ export default function SettingsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          plan,
-        }),
+        body: JSON.stringify({ plan }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to start subscription checkout.")
+        throw new Error(data?.error || "Failed to start subscription.")
       }
 
       if (data?.url) {
         window.location.href = data.url
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to start subscription.")
+      alert(error instanceof Error ? error.message : "Failed to subscribe.")
     } finally {
       setSubscriptionLoading("")
     }
@@ -562,15 +549,13 @@ export default function SettingsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          creditPack,
-        }),
+        body: JSON.stringify({ creditPack }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to create credit checkout.")
+        throw new Error(data?.error || "Failed to buy credits.")
       }
 
       if (data?.url) {
@@ -598,29 +583,14 @@ export default function SettingsPage() {
     return Math.round(score)
   }, [settings])
 
-  function getVerificationColor(status: VerificationStatus) {
-    switch (status) {
-      case "verified":
-        return "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
-      case "pending":
-        return "text-yellow-300 border-yellow-500/20 bg-yellow-500/10"
-      case "rejected":
-        return "text-red-400 border-red-500/20 bg-red-500/10"
-      default:
-        return "text-zinc-300 border-zinc-700 bg-zinc-900"
-    }
-  }
-
   const includedVideos = getPlanVideoLimit(settings.plan)
   const remainingIncludedVideos = Math.max(includedVideos - settings.videosUsed, 0)
 
   if (loading) {
     return (
       <div className="min-h-screen bg-black px-8 py-10 text-white">
-        <div className="mx-auto max-w-6xl">
-          <div className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-8 text-zinc-400">
-            Loading settings...
-          </div>
+        <div className="mx-auto max-w-6xl rounded-3xl border border-yellow-500/20 bg-zinc-950 p-8 text-zinc-400">
+          Loading settings...
         </div>
       </div>
     )
@@ -629,11 +599,9 @@ export default function SettingsPage() {
   if (pageError) {
     return (
       <div className="min-h-screen bg-black px-8 py-10 text-white">
-        <div className="mx-auto max-w-6xl">
-          <div className="rounded-3xl border border-red-500/20 bg-zinc-950 p-8">
-            <h1 className="text-3xl font-bold text-red-400">Settings</h1>
-            <p className="mt-4 text-zinc-300">{pageError}</p>
-          </div>
+        <div className="mx-auto max-w-6xl rounded-3xl border border-red-500/20 bg-zinc-950 p-8">
+          <h1 className="text-3xl font-bold text-red-400">Settings</h1>
+          <p className="mt-4 text-zinc-300">{pageError}</p>
         </div>
       </div>
     )
@@ -645,8 +613,8 @@ export default function SettingsPage() {
         <section className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-8">
           <h1 className="text-4xl font-bold text-yellow-400">Settings</h1>
           <p className="mt-3 text-zinc-400">
-            Manage your CreatorGoat workspace, creator identity, seller profile,
-            Stripe payouts, verification, subscriptions, credits, and customer-facing account information.
+            Manage your CreatorGoat workspace, creator identity, Stripe payouts,
+            subscriptions, credits, and account information.
           </p>
         </section>
 
@@ -666,7 +634,6 @@ export default function SettingsPage() {
 
         <section className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-6">
           <h2 className="text-2xl font-bold text-yellow-400">Video Access Summary</h2>
-
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <InfoCard label="Included Remaining" value={`${remainingIncludedVideos}`} />
             <InfoCard label="Extra Credits" value={`${settings.extraVideoCredits}`} />
@@ -752,7 +719,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("fullName", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <input
                   type="text"
                   placeholder="Username"
@@ -760,7 +726,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("username", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <input
                   type="text"
                   placeholder="Brand name"
@@ -768,7 +733,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("brandName", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <textarea
                   placeholder="Brand bio"
                   value={settings.bio}
@@ -781,7 +745,65 @@ export default function SettingsPage() {
             <section className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-6">
               <h2 className="text-2xl font-bold text-yellow-400">Profile & Contact</h2>
 
-              <div className="mt-6 grid gap-4">
+              <div className="mt-6 grid gap-5">
+                <div className="flex flex-col items-start gap-4 rounded-3xl border border-yellow-500/20 bg-black/20 p-5">
+                  <div className="relative h-28 w-28 overflow-hidden rounded-full border border-yellow-500/20 bg-zinc-900">
+                    {settings.profilePhoto ? (
+                      <img
+                        src={settings.profilePhoto}
+                        alt="Profile preview"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-3xl text-yellow-400">
+                        👤
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500 text-lg text-black shadow-lg disabled:opacity-50"
+                      title="Upload profile photo"
+                    >
+                      {uploadingAvatar ? "..." : "📷"}
+                    </button>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onAvatarFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="rounded-xl bg-yellow-500 px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+                    >
+                      {uploadingAvatar ? "Uploading..." : "Upload Photo"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={removeProfilePhoto}
+                      disabled={uploadingAvatar || !settings.profilePhoto}
+                      className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 disabled:opacity-50"
+                    >
+                      Remove Photo
+                    </button>
+                  </div>
+
+                  <p className="text-sm text-zinc-500">
+                    Profile photo is saved in Supabase Storage and linked to your account.
+                  </p>
+                </div>
+
                 <input
                   type="email"
                   placeholder="Email"
@@ -804,24 +826,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("address", e.target.value)}
                   className="min-h-[120px] w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
-                <input
-                  type="text"
-                  placeholder="Profile photo URL"
-                  value={settings.profilePhoto}
-                  onChange={(e) => updateField("profilePhoto", e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
-                />
-
-                {settings.profilePhoto ? (
-                  <div className="h-24 w-24 overflow-hidden rounded-full border border-yellow-500/20 bg-zinc-900">
-                    <img
-                      src={settings.profilePhoto}
-                      alt="Profile preview"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                ) : null}
               </div>
             </section>
 
@@ -836,7 +840,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("instagramUrl", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <input
                   type="text"
                   placeholder="TikTok URL"
@@ -844,7 +847,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("tiktokUrl", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <input
                   type="text"
                   placeholder="YouTube URL"
@@ -852,7 +854,6 @@ export default function SettingsPage() {
                   onChange={(e) => updateField("youtubeUrl", e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
                 />
-
                 <input
                   type="text"
                   placeholder="Website URL"
@@ -944,7 +945,7 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-bold text-yellow-400">Stripe Payouts</h2>
 
               <p className="mt-3 text-sm text-zinc-400">
-                Connect Stripe so customers can pay and payouts can go to your seller account automatically.
+                Connect Stripe so customers can pay and payouts can go to your seller account.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -993,71 +994,6 @@ export default function SettingsPage() {
             </section>
 
             <section className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-6">
-              <h2 className="text-2xl font-bold text-yellow-400">Seller Verification</h2>
-
-              <p className="mt-3 text-sm text-zinc-400">
-                Future-ready section for ID verification, proof of address, and seller trust systems.
-              </p>
-
-              <div className="mt-6 space-y-4">
-                <div className={`rounded-2xl border p-4 ${getVerificationColor(settings.sellerVerificationStatus)}`}>
-                  <p className="text-xs uppercase tracking-[0.14em]">Verification Status</p>
-                  <p className="mt-2 text-base font-semibold capitalize">
-                    {settings.sellerVerificationStatus}
-                  </p>
-                </div>
-
-                <select
-                  value={settings.sellerVerificationStatus}
-                  onChange={(e) =>
-                    updateField(
-                      "sellerVerificationStatus",
-                      e.target.value as VerificationStatus
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
-                >
-                  <option value="unverified">unverified</option>
-                  <option value="pending">pending</option>
-                  <option value="verified">verified</option>
-                  <option value="rejected">rejected</option>
-                </select>
-
-                <select
-                  value={settings.idDocumentType}
-                  onChange={(e) => updateField("idDocumentType", e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
-                >
-                  <option value="">Select ID document type</option>
-                  <option value="passport">passport</option>
-                  <option value="drivers_license">driver&apos;s license</option>
-                  <option value="national_id">national ID</option>
-                </select>
-
-                <input
-                  type="text"
-                  placeholder="ID document number"
-                  value={settings.idDocumentNumber}
-                  onChange={(e) => updateField("idDocumentNumber", e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Proof of address URL"
-                  value={settings.proofOfAddressUrl}
-                  onChange={(e) => updateField("proofOfAddressUrl", e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-white outline-none"
-                />
-
-                <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4 text-sm text-zinc-400">
-                  This section prepares the platform for Stripe Identity, ID verification,
-                  proof of address, and seller document workflows.
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-6">
               <h2 className="text-2xl font-bold text-yellow-400">Quick Account View</h2>
 
               <div className="mt-6 space-y-4 text-sm text-zinc-300">
@@ -1076,7 +1012,7 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-bold text-yellow-400">Save Settings</h2>
 
               <p className="mt-3 text-sm text-zinc-400">
-                Save your current workspace configuration, seller profile, verification fields, and payout settings.
+                Save your current workspace configuration, payout settings, and account preferences.
               </p>
 
               <button
@@ -1103,7 +1039,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl border border-yellow-500/20 bg-zinc-950 p-5">
       <p className="text-sm text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-yellow-400 capitalize">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-yellow-400">{value}</p>
     </div>
   )
 }
@@ -1120,15 +1056,14 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/20 p-4">
       <p className="font-medium text-white">{label}</p>
-
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`rounded-full px-4 py-2 text-sm font-medium ${
+        className={
           value
-            ? "bg-yellow-500 text-black"
-            : "border border-zinc-700 text-zinc-300"
-        }`}
+            ? "rounded-full bg-yellow-500 px-4 py-2 text-sm font-medium text-black"
+            : "rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300"
+        }
       >
         {value ? "On" : "Off"}
       </button>
@@ -1162,7 +1097,6 @@ function ActionCard({
     <div className="rounded-3xl border border-yellow-500/20 bg-zinc-900/60 p-5">
       <p className="text-lg font-bold text-yellow-400">{title}</p>
       <p className="mt-2 text-sm text-zinc-400">{subtitle}</p>
-
       <button
         type="button"
         onClick={onClick}

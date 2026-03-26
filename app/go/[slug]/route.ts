@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { NextResponse } from "next/server"
 
 type RouteContext = {
@@ -18,11 +18,9 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.redirect(homeUrl)
     }
 
-    const supabase = await createClient()
-
-    const { data: link, error } = await supabase
+    const { data: link, error } = await supabaseAdmin
       .from("links")
-      .select("id, user_id, title, slug, url, clicks")
+      .select("id, user_id, title, slug, url, clicks, is_active")
       .eq("slug", cleanSlug)
       .single()
 
@@ -31,31 +29,23 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.redirect(homeUrl)
     }
 
+    if (link.is_active === false) {
+      return NextResponse.redirect(homeUrl)
+    }
+
     const nextClicks = Number(link.clicks ?? 0) + 1
 
-    const { error: updateError } = await supabase
+    await supabaseAdmin
       .from("links")
       .update({ clicks: nextClicks })
       .eq("id", link.id)
 
-    if (updateError) {
-      console.error("Clicks update error:", updateError)
-    }
-
-    console.log("INSERT DATA:", {
+    const { error: leadError } = await supabaseAdmin.from("leads").insert({
       user_id: link.user_id,
       link_id: link.id,
       link_title: link.title,
       link_url: link.url,
       link_slug: link.slug,
-    })
-
-    const { error: leadError } = await supabase.from("leads").insert({
-      user_id: link.user_id,
-      link_id: link.id,
-      link_title: link.title ? String(link.title) : null,
-      link_url: link.url ? String(link.url) : null,
-      link_slug: link.slug ? String(link.slug) : null,
       source: "link_click",
     })
 

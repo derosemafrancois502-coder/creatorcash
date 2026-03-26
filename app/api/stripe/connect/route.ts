@@ -20,11 +20,12 @@ export async function POST(req: Request) {
     }
 
     const authHeader = req.headers.get("authorization")
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.replace("Bearer ", "").trim()
-      : ""
+    const bearerToken =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length).trim()
+        : ""
 
-    const body = await req.json().catch(() => ({}))
+    const body = await req.json().catch(() => ({} as Record<string, unknown>))
 
     const existingStripeAccountId =
       typeof body?.stripeAccountId === "string" && body.stripeAccountId.trim()
@@ -39,12 +40,32 @@ export async function POST(req: Request) {
         error: userError,
       } = await supabaseAdmin.auth.getUser(bearerToken)
 
-      if (!userError && user) {
+      if (userError) {
+        console.error("Stripe connect auth error:", userError)
+      }
+
+      if (user) {
         userId = user.id
       }
     }
 
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please log in first." },
+        { status: 401 }
+      )
+    }
+
     let accountId = existingStripeAccountId
+
+    if (accountId) {
+      try {
+        await stripe.accounts.retrieve(accountId)
+      } catch (retrieveError) {
+        console.error("Stripe retrieve account error:", retrieveError)
+        accountId = null
+      }
+    }
 
     if (!accountId) {
       const account = await stripe.accounts.create({
@@ -54,17 +75,20 @@ export async function POST(req: Request) {
       accountId = account.id
     }
 
-    if (userId && accountId) {
-      const { error: profileUpdateError } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          stripe_account_id: accountId,
-        })
-        .eq("id", userId)
+    const { error: profileUpdateError } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        stripe_account_id: accountId,
+      })
+      .eq("id", userId)
 
-      if (profileUpdateError) {
-        console.error("Failed to save stripe_account_id:", profileUpdateError)
-      }
+    if (profileUpdateError) {
+      console.error("Failed to save stripe_account_id:", profileUpdateError)
+
+      return NextResponse.json(
+        { error: profileUpdateError.message || "Failed to save Stripe account ID." },
+        { status: 500 }
+      )
     }
 
     const accountLink = await stripe.accountLinks.create({
@@ -105,6 +129,24 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: stripeError.message || "Stripe request failed." },
         { status: stripeError.statusCode || 400 }
+      )
+    }
+
+    if (
+      error &&
+      typeof error === "object" &&
+      "type" in error &&
+      error.type === "StripePermissionError"
+    ) {
+      const stripeError = error as Stripe.errors.StripePermissionError
+
+      return NextResponse.json(
+        {
+          error:
+            stripeError.message ||
+            "Stripe permission error. Make sure your platform account has Connect enabled.",
+        },
+        { status: stripeError.statusCode || 403 }
       )
     }
 
