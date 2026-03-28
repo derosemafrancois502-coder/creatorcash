@@ -71,7 +71,6 @@ function LuxuryHeroVisual() {
               preload="metadata"
               className="h-full w-full object-cover"
             />
-
             <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
           </div>
         ))}
@@ -520,6 +519,29 @@ export default function VideoStudioPage() {
     await fetchPreviewVideos(sceneList, fallbackQuery)
   }
 
+  const generateVoiceFromScript = async (script: string) => {
+    if (!script.trim()) return
+
+    clearAudioPreview()
+
+    const voiceRes = await fetch("/api/voice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        script,
+        voice: "alloy",
+      }),
+    })
+
+    if (voiceRes.ok) {
+      const voiceBlob = await voiceRes.blob()
+      const voiceObjectUrl = URL.createObjectURL(voiceBlob)
+      setAudioUrl(voiceObjectUrl)
+    }
+  }
+
   const pollGeneration = (id: string) => {
     if (lumaPollRef.current) {
       clearInterval(lumaPollRef.current)
@@ -684,6 +706,11 @@ export default function VideoStudioPage() {
             ]
 
       await fetchSceneVideosFromScenes(previewQueries, topic)
+
+      if (tool === "cinematic-video" && extractedVoice.trim()) {
+        await generateVoiceFromScript(extractedVoice)
+      }
+
       consumeLocalVideoUsage()
     } catch {
       setResult("Video generation failed.")
@@ -705,28 +732,7 @@ export default function VideoStudioPage() {
       }
 
       setVoiceLoading(true)
-      clearAudioPreview()
-
-      const res = await fetch("/api/voice", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          script: voiceScript,
-          voice: "alloy",
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setResult(data?.error || "Failed to generate voice.")
-        return
-      }
-
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      setAudioUrl(url)
+      await generateVoiceFromScript(voiceScript)
     } catch {
       setResult("Failed to generate voice.")
     } finally {
@@ -872,22 +878,7 @@ export default function VideoStudioPage() {
       await fetchSceneVideosFromScenes(previewQueries, topic)
 
       if (extractedVoice.trim()) {
-        const voiceRes = await fetch("/api/voice", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            script: extractedVoice,
-            voice: "alloy",
-          }),
-        })
-
-        if (voiceRes.ok) {
-          const voiceBlob = await voiceRes.blob()
-          const voiceObjectUrl = URL.createObjectURL(voiceBlob)
-          setAudioUrl(voiceObjectUrl)
-        }
+        await generateVoiceFromScript(extractedVoice)
       }
 
       consumeLocalVideoUsage()
