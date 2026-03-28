@@ -253,7 +253,7 @@ Make everything clear, viral, usable, and creator-focused.`
 
 ${languageInstruction}
 
-Create a short cinematic motivational video concept.
+Create a short cinematic luxury video concept.
 
 Topic: ${topic}
 Audience: ${audience}
@@ -282,55 +282,16 @@ CAPTION:
 CTA:
 ...
 
-Make it powerful, cinematic, and optimized for short-form video.
-Keep scenes visually simple and searchable for stock or AI video generation.`
-  }
-
-  if (tool === "product-video") {
-    return `You are a product marketing video strategist.
-
-${languageInstruction}
-
-Create a short product promo video.
-
-Product: ${topic}
-Audience: ${audience}
-Platform: ${platform}
-
-Return exactly in this format:
-
-HOOK:
-...
-
-SCRIPT:
-...
-
-SCENES:
-1. Scene
-2. Scene
-3. Scene
-
-BENEFITS:
-1. ...
-2. ...
-3. ...
-
-CAPTION:
-...
-
-CTA:
-...
-
-Make it feel like a short-form ad ready for TikTok or Reels.
+Make it powerful, cinematic, elegant, premium, and optimized for short-form video.
 Keep scenes visually simple and searchable for stock or AI video generation.`
   }
 
   if (tool === "cinematic-video") {
-    return `You are a cinematic AI video director.
+    return `You are a cinematic motivational speaker video director.
 
 ${languageInstruction}
 
-Create a cinematic luxury short-form video concept.
+Create a cinematic motivational speaker short-form video concept.
 
 Topic: ${topic}
 Platform: ${platform}
@@ -359,6 +320,7 @@ luxury aesthetic
 vertical video
 high contrast lighting
 expensive lifestyle visuals
+motivational speaker energy
 
 CAPTION:
 ...
@@ -366,7 +328,7 @@ CAPTION:
 CTA:
 ...
 
-Make it feel like a high-end luxury TikTok edit.
+Make it feel like a high-end luxury motivational speaker TikTok edit.
 Keep each scene visually clear enough to match with stock footage or future AI video generation.`
   }
 

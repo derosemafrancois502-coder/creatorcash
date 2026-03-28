@@ -1,36 +1,7 @@
 import { NextResponse } from "next/server"
 
-type LumaGeneration = {
-  id?: string
-  state?: string
-  status?: string
-  failure_reason?: string
-  assets?: {
-    video?: string
-    video_url?: string
-    image?: string
-  }
-  video?: {
-    url?: string
-  }
-  video_url?: string
-  url?: string
-}
-
-function getVideoUrl(generation: LumaGeneration) {
-  return (
-    generation?.assets?.video ||
-    generation?.assets?.video_url ||
-    generation?.video?.url ||
-    generation?.video_url ||
-    generation?.url ||
-    ""
-  )
-}
-
-function getState(generation: LumaGeneration) {
-  return generation?.state || generation?.status || "unknown"
-}
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(
   _req: Request,
@@ -41,7 +12,7 @@ export async function GET(
 
     if (!id?.trim()) {
       return NextResponse.json(
-        { error: "Missing generation id." },
+        { error: "Generation id is required." },
         { status: 400 }
       )
     }
@@ -75,35 +46,64 @@ export async function GET(
           error:
             data?.message ||
             data?.error ||
-            "Failed to fetch Luma generation status.",
+            "Failed to retrieve Luma generation.",
           details: data,
         },
         { status: response.status }
       )
     }
 
-    const generation: LumaGeneration = data || {}
-    const state = getState(generation)
-    const videoUrl = getVideoUrl(generation)
+    const state =
+      data?.state ||
+      data?.status ||
+      data?.generation_state ||
+      data?.generation?.state ||
+      data?.generation?.status ||
+      "processing"
+
+    const videoUrl =
+      data?.assets?.video ||
+      data?.assets?.video_url ||
+      data?.video?.url ||
+      data?.video_url ||
+      data?.url ||
+      data?.generation?.assets?.video ||
+      data?.generation?.assets?.video_url ||
+      data?.generation?.video?.url ||
+      data?.generation?.video_url ||
+      data?.generation?.url ||
+      ""
+
+    const failureReason =
+      data?.failure_reason ||
+      data?.failureReason ||
+      data?.error ||
+      data?.generation?.failure_reason ||
+      data?.generation?.failureReason ||
+      ""
 
     return NextResponse.json({
       success: true,
-      generation,
-      generationId: generation?.id || id,
+      id,
       state,
-      videoUrl,
+      status: state,
       completed:
         state === "completed" ||
-        state === "ready" ||
-        state === "succeeded",
-      failed: state === "failed" || state === "error",
-      failureReason: generation?.failure_reason || "",
+        state === "succeeded" ||
+        state === "ready",
+      failed:
+        state === "failed" ||
+        state === "error" ||
+        state === "canceled",
+      videoUrl,
+      failureReason,
+      generation: data,
     })
   } catch (error) {
     return NextResponse.json(
       {
-        error: "Something went wrong while checking Luma status.",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error:
+          error instanceof Error ? error.message : "Luma status route failed.",
       },
       { status: 500 }
     )

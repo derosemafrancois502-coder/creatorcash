@@ -153,54 +153,41 @@ function buildPrompt({
           .join(", ")
       : ""
 
-  const resolvedSubject =
-    subject || (mode === "product-video" ? "exact uploaded product" : topic)
+  const resolvedSubject = subject || topic
 
   const resolvedStyle =
     visualStyle ||
-    (mode === "product-video"
-      ? "ultra realistic premium product commercial, luxury ecommerce ad, high-end beauty product video, clean product focus"
-      : mode === "cinematic-video"
-        ? "cinematic luxury storytelling"
-        : "luxury motivational lifestyle reel")
+    (mode === "cinematic-video"
+      ? "ultra realistic cinematic motivational speaker, luxury stage presence, expensive suit, emotional storytelling, premium lighting"
+      : "ultra realistic luxury lifestyle, wealth, exotic locations, cinematic success, elegant premium visuals")
 
   const resolvedEnvironment =
     environment ||
-    (mode === "product-video"
-      ? "clean premium studio environment with elegant reflections, soft luxury surface, minimal high-end background"
-      : "luxury cinematic environment")
+    (mode === "cinematic-video"
+      ? "premium stage, luxury hall, spotlight environment, elegant indoor cinematic scene"
+      : "luxury mansion, exotic destination, private jet runway, yacht deck, premium lifestyle environment")
 
   const resolvedCamera =
     cameraStyle ||
-    (mode === "product-video"
-      ? "smooth dolly movement, macro close-ups, subtle motion, elegant product framing"
-      : "smooth motion, elegant framing")
+    "smooth cinematic camera movement, premium close-ups, slow motion, elegant framing"
 
   const resolvedLighting =
     lightingStyle ||
-    (mode === "product-video"
-      ? "professional luxury studio lighting, glossy highlights, clean shadows"
-      : "professional luxury lighting")
+    "professional luxury lighting, glossy highlights, premium contrast, elegant shadows"
 
-  const strictPhotoInstruction =
-    cleanText(photoInstruction) ||
-    (mode === "product-video" && resolvedImageSources && resolvedImageSources.length > 0
+  const imageInstruction =
+    resolvedImageSources && resolvedImageSources.length > 0
       ? [
-          "The uploaded product photo is the primary visual truth.",
-          "Use the uploaded product photo as the exact base image for the video.",
-          "The exact same uploaded product must remain visible in the final video.",
-          "Do not redesign the product.",
-          "Do not replace the bottle, jar, tube, box, or container.",
-          "Do not change the label, packaging colors, cap, pump, lid, nozzle, or shape.",
-          "Preserve the real product identity from the uploaded photo.",
-          "Animate the uploaded product with subtle premium motion only.",
-          "Do not add phones, laptops, app screens, people, or UI elements unless explicitly requested.",
-        ].join(" ")
-      : "")
+          "Use the uploaded reference image as visual inspiration.",
+          "Keep the same visual identity, luxury feeling, and key subject direction from the uploaded image.",
+          cleanText(photoInstruction),
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : ""
 
   const importantMustInclude = [
     safeChunk(mustInclude, 700),
-    mode === "product-video" ? "same exact uploaded product visible in the video" : "",
     productName ? `product name: ${productName}` : "",
     productType ? `product type: ${productType}` : "",
     productBrand ? `brand feeling: ${productBrand}` : "",
@@ -208,30 +195,21 @@ function buildPrompt({
     targetAudience ? `target audience: ${targetAudience}` : "",
     sellingAngle ? `selling angle: ${sellingAngle}` : "",
     featuresText ? `key features: ${featuresText}` : "",
-    strictPhotoInstruction,
+    imageInstruction,
   ]
     .filter(Boolean)
     .join(", ")
 
   const importantAvoid = [
     safeChunk(avoidElements, 700),
-    mode === "product-video"
-      ? "product replacement, different packaging, different label, different colors, low quality, blurry visuals, cluttered background, unrelated objects, phones, laptops, app interface, dashboards, people, UI screens, text overlays"
-      : "low quality, blurry visuals, cluttered background",
+    "low quality, blurry visuals, cluttered background, broken anatomy, ugly framing, cheap visuals, weak luxury feeling, messy composition, random text overlays",
   ]
     .filter(Boolean)
     .join(", ")
 
-  const shouldUseBlueprintBlocks = mode !== "product-video"
-
-  const blueprintBlock =
-    shouldUseBlueprintBlocks ? safeChunk(blueprint, 900) : ""
-
-  const voiceBlock =
-    shouldUseBlueprintBlocks ? safeChunk(voiceScript, 500) : ""
-
-  const captionBlock =
-    shouldUseBlueprintBlocks ? safeChunk(caption, 300) : ""
+  const blueprintBlock = safeChunk(blueprint, 900)
+  const voiceBlock = safeChunk(voiceScript, 500)
+  const captionBlock = safeChunk(caption, 300)
 
   const prompt = `
 Create a highly accurate vertical 9:16 cinematic video.
@@ -241,6 +219,9 @@ ${safeChunk(topic, 500)}
 
 Language direction:
 ${langRule}
+
+Video mode:
+${mode === "cinematic-video" ? "motivational speaker cinematic video" : "luxury lifestyle cinematic video"}
 
 Main subject:
 ${safeChunk(resolvedSubject, 300)}
@@ -258,17 +239,16 @@ Lighting:
 ${safeChunk(resolvedLighting, 250)}
 
 Must include:
-${importantMustInclude}
+${importantMustInclude || "premium visuals, elegant motion, cinematic polish"}
 
 Avoid:
 ${importantAvoid}
 
 ${
-  mode === "product-video" && resolvedImageSources && resolvedImageSources.length > 0
+  resolvedImageSources && resolvedImageSources.length > 0
     ? `Reference image rule:
-Use the uploaded product image as frame0 and keep that same exact product identity visible and recognizable throughout the video.
-Do not transform the uploaded product into a different product.
-Keep the uploaded product as the hero object in the scene.
+Use the uploaded image as frame0 visual inspiration and preserve the same premium subject direction where appropriate.
+Do not ignore the reference image.
 `
     : ""
 }
@@ -278,7 +258,7 @@ ${voiceBlock ? `Voiceover direction:\n${voiceBlock}\n` : ""}
 ${captionBlock ? `Caption direction:\n${captionBlock}\n` : ""}
 
 General quality:
-Ultra realistic, premium, cinematic, polished, elegant, social-media ready.
+Ultra realistic, premium, cinematic, polished, elegant, luxury, social-media ready.
   `.trim()
 
   return truncatePrompt(prompt)
@@ -290,7 +270,8 @@ export async function POST(req: Request) {
 
     const topic = cleanText(body?.topic)
     const language = cleanText(body?.language) || "English"
-    const mode = cleanText(body?.mode) || "luxury-video"
+    const rawMode = cleanText(body?.mode) || "luxury-video"
+    const mode = rawMode === "cinematic-video" ? "cinematic-video" : "luxury-video"
 
     const subject = cleanText(body?.subject)
     const visualStyle = cleanText(body?.visualStyle)
@@ -333,29 +314,6 @@ export async function POST(req: Request) {
       )
     }
 
-    if (mode === "product-video" && resolvedImageSources.length === 0) {
-      return NextResponse.json(
-        {
-          error: "For product-video mode, at least 1 public product image URL is required.",
-          debug: {
-            directImageUrls,
-            productImageSources,
-            resolvedImageSources,
-          },
-        },
-        { status: 400 }
-      )
-    }
-
-    if (mode === "product-video" && resolvedImageSources.length > 5) {
-      return NextResponse.json(
-        {
-          error: "You can upload a maximum of 5 product photos.",
-        },
-        { status: 400 }
-      )
-    }
-
     const apiKey = process.env.LUMA_API_KEY || process.env.LUMAAI_API_KEY
 
     if (!apiKey) {
@@ -390,51 +348,50 @@ export async function POST(req: Request) {
       caption,
     })
 
-    const primaryIndexRaw =
-      typeof body?.primaryProductImageIndex === "number"
-        ? body.primaryProductImageIndex
-        : 0
-
-    const primaryIndex =
-      primaryIndexRaw >= 0 && primaryIndexRaw < resolvedImageSources.length
-        ? primaryIndexRaw
-        : 0
-
-    const primaryImage =
-      resolvedImageSources[primaryIndex] || resolvedImageSources[0]
-
-    console.log("🔥 PRIMARY IMAGE:", primaryImage)
-
-    if (!primaryImage || !isHttpUrl(primaryImage)) {
-      console.log("❌ BAD IMAGE:", primaryImage)
-      console.log("❌ ALL IMAGES:", resolvedImageSources)
-
-      return NextResponse.json(
-        {
-          error: "No valid public image URL sent to Luma.",
-          debug: {
-            primaryImage,
-            resolvedImageSources,
-            primaryIndex,
-            primaryIndexRaw,
-          },
-        },
-        { status: 400 }
-      )
-    }
-
-    const lumaPayload = {
+    const lumaPayload: {
+      prompt: string
+      model: string
+      resolution: string
+      duration: string
+      aspect_ratio: string
+      keyframes?: {
+        frame0: {
+          type: "image"
+          url: string
+        }
+      }
+    } = {
       prompt,
       model: "ray-2",
       resolution: "720p",
       duration: "5s",
       aspect_ratio: "9:16",
-      keyframes: {
-        frame0: {
-          type: "image",
-          url: primaryImage,
-        },
-      },
+    }
+
+    if (resolvedImageSources.length > 0) {
+      const primaryIndexRaw =
+        typeof body?.primaryProductImageIndex === "number"
+          ? body.primaryProductImageIndex
+          : 0
+
+      const primaryIndex =
+        primaryIndexRaw >= 0 && primaryIndexRaw < resolvedImageSources.length
+          ? primaryIndexRaw
+          : 0
+
+      const primaryImage =
+        resolvedImageSources[primaryIndex] || resolvedImageSources[0]
+
+      console.log("🔥 PRIMARY IMAGE:", primaryImage)
+
+      if (primaryImage && isHttpUrl(primaryImage)) {
+        lumaPayload.keyframes = {
+          frame0: {
+            type: "image",
+            url: primaryImage,
+          },
+        }
+      }
     }
 
     console.log("🚀 LUMA PAYLOAD:", JSON.stringify(lumaPayload, null, 2))
@@ -478,7 +435,7 @@ export async function POST(req: Request) {
       promptUsed: prompt,
       imageCount: resolvedImageSources.length,
       imageUrlsUsed: resolvedImageSources,
-      keyframesUsed: lumaPayload.keyframes,
+      keyframesUsed: lumaPayload.keyframes || null,
     })
   } catch (error) {
     return NextResponse.json(

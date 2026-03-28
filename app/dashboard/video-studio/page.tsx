@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
-const PRODUCT_IMAGE_BUCKET = "product-images"
-
 const languages = [
   "English",
   "French",
@@ -64,15 +62,15 @@ function LuxuryHeroVisual() {
             className="relative overflow-hidden rounded-[24px] border border-white/10 bg-zinc-900"
           >
             <video
+              key={item.src}
+              src={item.src}
               autoPlay
               muted
               loop
               playsInline
               preload="metadata"
               className="h-full w-full object-cover"
-            >
-              <source src={item.src} type="video/mp4" />
-            </video>
+            />
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
           </div>
@@ -97,28 +95,14 @@ function LuxuryHeroVisual() {
         </p>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
           Premium luxury video engine for motivational reels, cinematic edits,
-          product promos, exotic cars, yachts, and high-status creator content.
+          exotic cars, yachts, high-status creator content, and speaker-style videos.
         </p>
       </div>
     </div>
   )
 }
 
-type ToolType = "luxury-video" | "product-video" | "cinematic-video"
-
-type ProductImageItem = {
-  id: string
-  file: File
-  preview: string
-}
-
-type UploadedProductImage = {
-  name: string
-  type: string
-  size: number
-  url: string
-}
-
+type ToolType = "luxury-video" | "cinematic-video"
 type UserPlan = "starter" | "pro" | "founder" | "founder_elite" | "free"
 
 type ProfileRow = {
@@ -165,56 +149,79 @@ function hasTrialExpired(trialExpiresAt?: string | null) {
   return Date.now() > new Date(trialExpiresAt).getTime()
 }
 
+function getFallbackVideos(tool: ToolType) {
+  if (tool === "cinematic-video") {
+    return ["/hero-mercedes.mp4", "/hero-lambo.mp4", "/hero-rolls.mp4"]
+  }
+  return ["/hero-rolls.mp4", "/hero-yacht.mp4", "/hero-lambo.mp4"]
+}
+
 function VideoPreviewFrame({
   caption,
   audioUrl,
   scenes,
-  sceneVideos,
   activeTool,
   lumaVideoUrl,
+  lumaStatus,
+  previewVideoUrl,
 }: {
   caption: string
   audioUrl: string
   scenes: string[]
-  sceneVideos: string[]
   activeTool: ToolType
   lumaVideoUrl: string
+  lumaStatus: string
+  previewVideoUrl: string
 }) {
-  const fallbackVideos = luxuryVideos.map((item) => item.src)
-  const previewVideos = sceneVideos.length > 0 ? sceneVideos : fallbackVideos
-  const primaryVideo = previewVideos[0] || ""
   const previewLabel =
-    activeTool === "product-video"
-      ? "Product Video Preview"
-      : activeTool === "cinematic-video"
-        ? "Cinematic Video Preview"
-        : "Luxury Motivational Preview"
+    activeTool === "cinematic-video"
+      ? "Motivational Speaker Preview"
+      : "Luxury Video Preview"
+
+  const isLumaWorking =
+    !!lumaStatus &&
+    !lumaVideoUrl &&
+    (lumaStatus.toLowerCase().includes("creating") ||
+      lumaStatus.toLowerCase().includes("waiting") ||
+      lumaStatus.toLowerCase().includes("dreaming") ||
+      lumaStatus.toLowerCase().includes("processing") ||
+      lumaStatus.toLowerCase().includes("rendering") ||
+      lumaStatus.toLowerCase().includes("still processing"))
+
+  const videoToShow = lumaVideoUrl || previewVideoUrl
 
   return (
     <div className="w-[360px] max-w-full overflow-hidden rounded-[24px] border border-yellow-500/20 bg-black">
       <div className="relative aspect-[9/16] bg-black">
-        {lumaVideoUrl ? (
-          <video
-            controls
-            playsInline
-            className="h-full w-full object-cover"
-          >
-            <source src={lumaVideoUrl} type="video/mp4" />
-          </video>
-        ) : primaryVideo ? (
-          <video
-            autoPlay
-            muted={!audioUrl}
-            loop={!audioUrl}
-            playsInline
-            controls
-            className="h-full w-full object-cover"
-          >
-            <source src={primaryVideo} type="video/mp4" />
-          </video>
+        {videoToShow ? (
+          <div className="relative h-full w-full">
+            <video
+              key={videoToShow}
+              src={videoToShow}
+              autoPlay
+              muted={!audioUrl || !lumaVideoUrl}
+              loop={!audioUrl || !lumaVideoUrl}
+              playsInline
+              controls
+              preload="auto"
+              className="h-full w-full object-cover"
+            />
+
+            {isLumaWorking ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/45 text-center text-zinc-400">
+                <div className="mb-4 h-14 w-14 animate-spin rounded-full border-2 border-yellow-400/30 border-t-yellow-400" />
+                <p className="text-sm font-medium text-yellow-300">
+                  Generating luxury video...
+                </p>
+                <p className="mt-2 max-w-[220px] text-xs leading-5 text-zinc-500">
+                  Luma is working on your video now. It will appear here automatically when ready.
+                </p>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-black text-center text-zinc-500">
-            No preview media yet.
+            Video preview will appear here.
           </div>
         )}
 
@@ -251,7 +258,7 @@ function VideoPreviewFrame({
 
 export default function VideoStudioPage() {
   const supabase = createClient()
-  const productFileRef = useRef<HTMLInputElement | null>(null)
+  const lumaPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [topic, setTopic] = useState("")
   const [language, setLanguage] = useState("English")
@@ -260,6 +267,7 @@ export default function VideoStudioPage() {
   const [caption, setCaption] = useState("")
   const [scenes, setScenes] = useState<string[]>([])
   const [sceneVideos, setSceneVideos] = useState<string[]>([])
+  const [previewVideoUrl, setPreviewVideoUrl] = useState("")
   const [activeTool, setActiveTool] = useState<ToolType>("luxury-video")
   const [audioUrl, setAudioUrl] = useState("")
   const [loading, setLoading] = useState(false)
@@ -280,8 +288,6 @@ export default function VideoStudioPage() {
   const [cameraStyle, setCameraStyle] = useState("")
   const [lightingStyle, setLightingStyle] = useState("")
 
-  const [productImages, setProductImages] = useState<ProductImageItem[]>([])
-
   const [userPlan, setUserPlan] = useState<UserPlan>("free")
   const [videosUsed, setVideosUsed] = useState(0)
   const [extraVideoCredits, setExtraVideoCredits] = useState(0)
@@ -295,11 +301,14 @@ export default function VideoStudioPage() {
 
   useEffect(() => {
     return () => {
-      productImages.forEach((item) => {
-        URL.revokeObjectURL(item.preview)
-      })
+      if (lumaPollRef.current) {
+        clearInterval(lumaPollRef.current)
+      }
+      if (audioUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(audioUrl)
+      }
     }
-  }, [productImages])
+  }, [audioUrl])
 
   useEffect(() => {
     let cancelled = false
@@ -422,127 +431,202 @@ export default function VideoStudioPage() {
     return false
   }
 
+  const clearAudioPreview = () => {
+    if (audioUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(audioUrl)
+    }
+    setAudioUrl("")
+  }
+
+  const seedImmediatePreview = (tool: ToolType) => {
+    const fallback = getFallbackVideos(tool)
+    setActiveTool(tool)
+    setLumaVideoUrl("")
+    setLumaStatus("")
+    setPreviewVideoUrl(fallback[0] || "")
+    setSceneVideos(fallback)
+  }
+
   const resetStudioOutputs = () => {
     setResult("")
     setVoiceScript("")
     setCaption("")
     setScenes([])
     setSceneVideos([])
-    setAudioUrl("")
+    setPreviewVideoUrl("")
+    clearAudioPreview()
     setLumaStatus("")
     setLumaVideoUrl("")
     setLumaGenerationId("")
+    if (lumaPollRef.current) {
+      clearInterval(lumaPollRef.current)
+      lumaPollRef.current = null
+    }
   }
 
-  const fetchSceneVideosFromScenes = async (sceneList: string[]) => {
+  const fetchPreviewVideos = async (
+    queryCandidates: string[],
+    fallbackQuery?: string
+  ) => {
+    const cleanedQueries = [
+      ...queryCandidates.map((item) => item.trim()).filter(Boolean),
+      fallbackQuery?.trim() || "",
+    ].filter(Boolean)
+
+    const uniqueQueries = [...new Set(cleanedQueries)]
     const videoResults: string[] = []
 
-    for (const scene of sceneList) {
+    for (const query of uniqueQueries) {
+      if (videoResults.length >= 4) break
+
       try {
         const r = await fetch("/api/pexels", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ query: scene }),
+          body: JSON.stringify({ query }),
         })
 
         const d = await r.json()
 
-        if (d.clips?.length) {
-          videoResults.push(d.clips[0])
+        if (Array.isArray(d.clips) && d.clips.length) {
+          for (const clip of d.clips) {
+            if (
+              typeof clip === "string" &&
+              clip.trim() &&
+              !videoResults.includes(clip)
+            ) {
+              videoResults.push(clip)
+              if (videoResults.length >= 4) break
+            }
+          }
         }
       } catch {
-        // ignore
+        // ignore preview fetch errors
       }
     }
 
-    setSceneVideos(videoResults)
-  }
-
-  const handleProductPhotoChange = (files: FileList | null) => {
-    if (!files) return
-
-    const picked = Array.from(files)
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, 5)
-
-    const nextItems = picked.map((file, index) => ({
-      id: `${file.name}-${file.size}-${Date.now()}-${index}`,
-      file,
-      preview: URL.createObjectURL(file),
-    }))
-
-    setProductImages((prev) => {
-      prev.forEach((item) => URL.revokeObjectURL(item.preview))
-      return nextItems
-    })
-  }
-
-  const removeProductImage = (id: string) => {
-    setProductImages((prev) => {
-      const target = prev.find((item) => item.id === id)
-      if (target) URL.revokeObjectURL(target.preview)
-      return prev.filter((item) => item.id !== id)
-    })
-  }
-
-  const clearProductImages = () => {
-    setProductImages((prev) => {
-      prev.forEach((item) => URL.revokeObjectURL(item.preview))
-      return []
-    })
-
-    if (productFileRef.current) {
-      productFileRef.current.value = ""
+    if (videoResults.length > 0) {
+      setSceneVideos(videoResults)
+      setPreviewVideoUrl(videoResults[0])
     }
   }
 
-  const uploadProductImagesToStorage = async (): Promise<UploadedProductImage[]> => {
-    const uploaded: UploadedProductImage[] = []
+  const fetchSceneVideosFromScenes = async (
+    sceneList: string[],
+    fallbackQuery?: string
+  ) => {
+    await fetchPreviewVideos(sceneList, fallbackQuery)
+  }
 
-    for (const item of productImages) {
-      const ext = item.file.name.split(".").pop()?.toLowerCase() || "jpg"
-      const safeBaseName = item.file.name
-        .replace(/\.[^/.]+$/, "")
-        .replace(/[^a-zA-Z0-9-_]/g, "-")
-        .toLowerCase()
+  const pollGeneration = (id: string) => {
+    if (lumaPollRef.current) {
+      clearInterval(lumaPollRef.current)
+    }
 
-      const filePath = `video-studio/${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}-${safeBaseName}.${ext}`
+    setLumaStatus("Luma status: dreaming")
 
-      const { error: uploadError } = await supabase.storage
-        .from(PRODUCT_IMAGE_BUCKET)
-        .upload(filePath, item.file, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: item.file.type || undefined,
+    let attempts = 0
+    const maxAttempts = 60
+
+    lumaPollRef.current = setInterval(async () => {
+      try {
+        attempts += 1
+
+        const res = await fetch(`/api/luma/status/${id}`, {
+          method: "GET",
+          cache: "no-store",
         })
 
-      if (uploadError) {
-        throw new Error(uploadError.message || "Failed to upload product photo.")
+        const data = await res.json()
+
+        if (!res.ok) {
+          if (lumaPollRef.current) {
+            clearInterval(lumaPollRef.current)
+            lumaPollRef.current = null
+          }
+          setLumaStatus("")
+          setResult(data?.error || "Failed to check Luma status.")
+          return
+        }
+
+        const state =
+          data?.state ||
+          data?.status ||
+          data?.generation?.state ||
+          data?.generation?.status ||
+          data?.generation?.generation_state ||
+          "processing"
+
+        const possibleVideoUrl =
+          data?.videoUrl ||
+          data?.generation?.assets?.video ||
+          data?.generation?.assets?.video_url ||
+          data?.generation?.video?.url ||
+          data?.generation?.video_url ||
+          data?.generation?.url ||
+          ""
+
+        setLumaStatus(`Luma status: ${state}`)
+
+        if (
+          state === "completed" ||
+          state === "succeeded" ||
+          state === "ready"
+        ) {
+          if (possibleVideoUrl) {
+            setLumaVideoUrl(possibleVideoUrl)
+            setPreviewVideoUrl(possibleVideoUrl)
+            setLumaStatus("Luma video ready.")
+            consumeLocalVideoUsage()
+
+            if (lumaPollRef.current) {
+              clearInterval(lumaPollRef.current)
+              lumaPollRef.current = null
+            }
+            return
+          }
+
+          setLumaStatus("Luma completed, but no video URL was returned.")
+          if (lumaPollRef.current) {
+            clearInterval(lumaPollRef.current)
+            lumaPollRef.current = null
+          }
+          return
+        }
+
+        if (state === "failed" || state === "error" || state === "canceled") {
+          setLumaStatus("Luma generation failed.")
+          setResult(
+            data?.failureReason ||
+              data?.error ||
+              "Luma generation failed."
+          )
+
+          if (lumaPollRef.current) {
+            clearInterval(lumaPollRef.current)
+            lumaPollRef.current = null
+          }
+          return
+        }
+
+        if (attempts >= maxAttempts) {
+          setLumaStatus("Still processing. Try again in a moment.")
+          if (lumaPollRef.current) {
+            clearInterval(lumaPollRef.current)
+            lumaPollRef.current = null
+          }
+        }
+      } catch {
+        if (lumaPollRef.current) {
+          clearInterval(lumaPollRef.current)
+          lumaPollRef.current = null
+        }
+        setLumaStatus("")
+        setResult("Polling Luma status failed.")
       }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(PRODUCT_IMAGE_BUCKET)
-        .getPublicUrl(filePath)
-
-      const publicUrl = publicUrlData?.publicUrl || ""
-
-      if (!publicUrl) {
-        throw new Error("Failed to create public URL for product photo.")
-      }
-
-      uploaded.push({
-        name: item.file.name,
-        type: item.file.type,
-        size: item.file.size,
-        url: publicUrl,
-      })
-    }
-
-    return uploaded
+    }, 7000)
   }
 
   const generateRegularVideo = async (tool: ToolType) => {
@@ -551,7 +635,7 @@ export default function VideoStudioPage() {
 
       setLoading(true)
       resetStudioOutputs()
-      setActiveTool(tool)
+      seedImmediatePreview(tool)
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -586,7 +670,20 @@ export default function VideoStudioPage() {
       setCaption(extractedCaption)
       setScenes(extractedScenes)
 
-      await fetchSceneVideosFromScenes(extractedScenes)
+      const previewQueries =
+        extractedScenes.length > 0
+          ? extractedScenes
+          : [
+              topic,
+              subject,
+              visualStyle,
+              environment,
+              tool === "cinematic-video"
+                ? "motivational speaker luxury stage"
+                : "luxury lifestyle premium cinematic",
+            ]
+
+      await fetchSceneVideosFromScenes(previewQueries, topic)
       consumeLocalVideoUsage()
     } catch {
       setResult("Video generation failed.")
@@ -595,244 +692,7 @@ export default function VideoStudioPage() {
     }
   }
 
-  const generateProductVideo = async () => {
-    try {
-      if (!ensureVideoAccess()) return
-
-      if (!topic.trim()) {
-        setResult("Enter a topic first.")
-        return
-      }
-
-      if (productImages.length === 0) {
-        setResult("Upload at least 1 product photo for product video.")
-        return
-      }
-
-      setLoading(true)
-      resetStudioOutputs()
-      setActiveTool("product-video")
-      setLumaStatus("Uploading product photos...")
-
-      const uploadedImages = await uploadProductImagesToStorage()
-      const imageUrls = uploadedImages.map((img) => img.url).filter(Boolean)
-
-      if (imageUrls.length === 0) {
-        setResult("No public product image URL was created.")
-        setLumaStatus("")
-        return
-      }
-
-      const strictPhotoInstruction = [
-        "Use the uploaded product photo as the primary visual truth.",
-        "The exact same uploaded product must remain visible in the final video.",
-        "Do not redesign the product.",
-        "Do not replace the bottle, jar, tube, box, or container.",
-        "Do not change the label, packaging colors, cap, pump, or shape.",
-        "Preserve the real product identity from the uploaded photo.",
-        "Animate the uploaded product with subtle premium motion only.",
-        "The uploaded photo must clearly influence the final product video.",
-      ].join(" ")
-
-      const mergedMustInclude = [mustInclude, strictPhotoInstruction]
-        .filter(Boolean)
-        .join("\n\n")
-
-      const mergedAvoid = [
-        avoidElements,
-        "Do not invent a different product. Do not replace the uploaded product. Do not change packaging.",
-      ]
-        .filter(Boolean)
-        .join("\n\n")
-
-      setLumaStatus("Generating product blueprint...")
-
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tool: "product-video",
-          topic,
-          platform: "TikTok",
-          audience: "Creators",
-          language,
-          subject,
-          visualStyle,
-          environment,
-          mustInclude: mergedMustInclude,
-          avoidElements: mergedAvoid,
-          cameraStyle,
-          lightingStyle,
-          imageUrls,
-          photoLockMode: "strict",
-          photoInstruction: strictPhotoInstruction,
-          primaryProductImageIndex: 0,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setResult(data.error || "Error generating product video.")
-        setLumaStatus("")
-        return
-      }
-
-      const output = (data.result || "").replace(/\*\*/g, "")
-      setResult(output)
-
-      const extractedVoice =
-        extractSection(output, "VOICEOVER") || extractSection(output, "SCRIPT")
-      const extractedCaption = extractSection(output, "CAPTION")
-      const extractedScenes = extractScenes(output)
-
-      setVoiceScript(extractedVoice)
-      setCaption(extractedCaption)
-      setScenes(extractedScenes)
-
-      await fetchSceneVideosFromScenes(extractedScenes)
-
-      setLumaStatus("Sending product images to Luma...")
-
-      const lumaRes = await fetch("/api/luma/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          topic,
-          language,
-          mode: "product-video",
-          subject,
-          visualStyle,
-          environment,
-          mustInclude: mergedMustInclude,
-          avoidElements: mergedAvoid,
-          cameraStyle,
-          lightingStyle,
-          blueprint: output,
-          voiceScript: extractedVoice,
-          caption: extractedCaption,
-          imageUrls,
-          photoLockMode: "strict",
-          photoInstruction: strictPhotoInstruction,
-          primaryProductImageIndex: 0,
-        }),
-      })
-
-      const lumaData = await lumaRes.json()
-
-      if (!lumaRes.ok) {
-        setResult(
-          lumaData?.error ||
-            lumaData?.details?.message ||
-            "Failed to start product video generation."
-        )
-        setLumaStatus("")
-        return
-      }
-
-      const generation = lumaData?.generation || {}
-      const generationId =
-        lumaData?.generationId || generation?.id || generation?.generation_id || ""
-
-      if (!generationId) {
-        setResult("Luma generation id not found.")
-        setLumaStatus("")
-        return
-      }
-
-      setLumaGenerationId(generationId)
-      setLumaStatus("Generation created. Waiting for product video...")
-
-      let attempts = 0
-      const maxAttempts = 24
-
-      while (attempts < maxAttempts) {
-        attempts += 1
-
-        await new Promise((resolve) => setTimeout(resolve, 5000))
-
-        const statusRes = await fetch(`/api/luma/status/${generationId}`, {
-          method: "GET",
-          cache: "no-store",
-        })
-
-        const statusData = await statusRes.json()
-
-        if (!statusRes.ok) {
-          setResult(statusData?.error || "Failed to check Luma status.")
-          setLumaStatus("")
-          return
-        }
-
-        const state =
-          statusData?.state ||
-          statusData?.generation?.state ||
-          statusData?.generation?.status ||
-          statusData?.generation?.generation_state ||
-          "processing"
-
-        const possibleVideoUrl =
-          statusData?.videoUrl ||
-          statusData?.generation?.assets?.video ||
-          statusData?.generation?.assets?.video_url ||
-          statusData?.generation?.video?.url ||
-          statusData?.generation?.video_url ||
-          statusData?.generation?.url ||
-          ""
-
-        setLumaStatus(`Luma status: ${state}`)
-
-        if (
-          state === "completed" ||
-          state === "succeeded" ||
-          state === "ready"
-        ) {
-          if (possibleVideoUrl) {
-            setLumaVideoUrl(possibleVideoUrl)
-            setLumaStatus("Product video ready.")
-            consumeLocalVideoUsage()
-            return
-          }
-
-          setLumaStatus("Luma completed, but no video URL was returned.")
-          return
-        }
-
-        if (state === "failed" || state === "error") {
-          setLumaStatus("Luma generation failed.")
-          setResult(
-            statusData?.failureReason ||
-              statusData?.error ||
-              "Luma generation failed."
-          )
-          return
-        }
-      }
-
-      setLumaStatus("Still processing. Try again in a moment.")
-    } catch (error) {
-      setResult(
-        error instanceof Error
-          ? error.message
-          : "Product video generation failed."
-      )
-      setLumaStatus("")
-    } finally {
-      setLoading(false)
-      refreshUsage()
-    }
-  }
-
   const generateVideo = async (tool: ToolType) => {
-    if (tool === "product-video") {
-      await generateProductVideo()
-      return
-    }
-
     await generateRegularVideo(tool)
     refreshUsage()
   }
@@ -845,7 +705,7 @@ export default function VideoStudioPage() {
       }
 
       setVoiceLoading(true)
-      setAudioUrl("")
+      clearAudioPreview()
 
       const res = await fetch("/api/voice", {
         method: "POST",
@@ -894,6 +754,9 @@ export default function VideoStudioPage() {
       if (lumaVideoUrl.trim()) {
         videoUrl = lumaVideoUrl.trim()
         filename = "creatorgoat-luma-video.mp4"
+      } else if (previewVideoUrl.trim()) {
+        videoUrl = previewVideoUrl.trim()
+        filename = "creatorgoat-preview-video.mp4"
       } else if (sceneVideos.length > 0 && sceneVideos[0]?.trim()) {
         videoUrl = sceneVideos[0].trim()
         filename = "creatorgoat-preview-video.mp4"
@@ -954,11 +817,11 @@ export default function VideoStudioPage() {
       resetStudioOutputs()
 
       const toolToUse =
-        activeTool === "product-video"
-          ? "product-video"
-          : activeTool === "cinematic-video"
-            ? "cinematic-video"
-            : "luxury-video"
+        activeTool === "cinematic-video"
+          ? "cinematic-video"
+          : "luxury-video"
+
+      seedImmediatePreview(toolToUse)
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -993,7 +856,20 @@ export default function VideoStudioPage() {
       setCaption(extractedCaption)
       setScenes(extractedScenes)
 
-      await fetchSceneVideosFromScenes(extractedScenes)
+      const previewQueries =
+        extractedScenes.length > 0
+          ? extractedScenes
+          : [
+              topic,
+              subject,
+              visualStyle,
+              environment,
+              toolToUse === "cinematic-video"
+                ? "motivational speaker luxury stage"
+                : "luxury lifestyle premium cinematic",
+            ]
+
+      await fetchSceneVideosFromScenes(previewQueries, topic)
 
       if (extractedVoice.trim()) {
         const voiceRes = await fetch("/api/voice", {
@@ -1033,9 +909,30 @@ export default function VideoStudioPage() {
       }
 
       setLumaLoading(true)
-      setLumaStatus("Creating Luma generation...")
       setLumaVideoUrl("")
       setLumaGenerationId("")
+      seedImmediatePreview(activeTool)
+      setLumaStatus("Creating Luma generation...")
+
+      if (lumaPollRef.current) {
+        clearInterval(lumaPollRef.current)
+        lumaPollRef.current = null
+      }
+
+      if (sceneVideos.length === 0) {
+        await fetchPreviewVideos(
+          [
+            topic,
+            subject,
+            visualStyle,
+            environment,
+            activeTool === "cinematic-video"
+              ? "motivational speaker luxury stage"
+              : "luxury lifestyle premium cinematic",
+          ],
+          topic
+        )
+      }
 
       const res = await fetch("/api/luma/generate", {
         method: "POST",
@@ -1076,74 +973,7 @@ export default function VideoStudioPage() {
 
       setLumaGenerationId(generationId)
       setLumaStatus("Generation created. Waiting for Luma video...")
-
-      let attempts = 0
-      const maxAttempts = 24
-
-      while (attempts < maxAttempts) {
-        attempts += 1
-
-        await new Promise((resolve) => setTimeout(resolve, 5000))
-
-        const statusRes = await fetch(`/api/luma/status/${generationId}`, {
-          method: "GET",
-          cache: "no-store",
-        })
-
-        const statusData = await statusRes.json()
-
-        if (!statusRes.ok) {
-          setResult(statusData?.error || "Failed to check Luma status.")
-          setLumaStatus("")
-          return
-        }
-
-        const state =
-          statusData?.state ||
-          statusData?.generation?.state ||
-          statusData?.generation?.status ||
-          statusData?.generation?.generation_state ||
-          "processing"
-
-        const possibleVideoUrl =
-          statusData?.videoUrl ||
-          statusData?.generation?.assets?.video ||
-          statusData?.generation?.assets?.video_url ||
-          statusData?.generation?.video?.url ||
-          statusData?.generation?.video_url ||
-          statusData?.generation?.url ||
-          ""
-
-        setLumaStatus(`Luma status: ${state}`)
-
-        if (
-          state === "completed" ||
-          state === "succeeded" ||
-          state === "ready"
-        ) {
-          if (possibleVideoUrl) {
-            setLumaVideoUrl(possibleVideoUrl)
-            setLumaStatus("Luma video ready.")
-            consumeLocalVideoUsage()
-            return
-          }
-
-          setLumaStatus("Luma says completed, but no video URL was returned.")
-          return
-        }
-
-        if (state === "failed" || state === "error") {
-          setLumaStatus("Luma generation failed.")
-          setResult(
-            statusData?.failureReason ||
-              statusData?.error ||
-              "Luma generation failed."
-          )
-          return
-        }
-      }
-
-      setLumaStatus("Still processing. Try again in a moment.")
+      pollGeneration(generationId)
     } catch {
       setResult("Luma video generation failed.")
       setLumaStatus("")
@@ -1170,8 +1000,8 @@ export default function VideoStudioPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-400">
-              Generate premium luxury, cinematic, and product videos with AI
-              scripts, voice, preview, and download.
+              Generate premium luxury and motivational speaker videos with AI
+              scripts, voice, preview, Luma AI, and download.
             </p>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-4">
@@ -1216,7 +1046,7 @@ export default function VideoStudioPage() {
             <input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="30 second luxury video cars yacht"
+              placeholder="luxury mindset speech with private jet and black car"
               className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-yellow-400"
             />
           </div>
@@ -1251,7 +1081,7 @@ export default function VideoStudioPage() {
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="black and gold perfume bottle, elegant woman, premium body lotion"
+                placeholder="luxury speaker, black suit, exotic car, elegant stage"
                 className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -1261,7 +1091,7 @@ export default function VideoStudioPage() {
               <input
                 value={visualStyle}
                 onChange={(e) => setVisualStyle(e.target.value)}
-                placeholder="ultra realistic luxury beauty ad, cinematic, premium, elegant"
+                placeholder="ultra realistic luxury cinematic, premium, elegant, high-status"
                 className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -1271,7 +1101,7 @@ export default function VideoStudioPage() {
               <input
                 value={environment}
                 onChange={(e) => setEnvironment(e.target.value)}
-                placeholder="luxury marble table, elegant bathroom, premium studio"
+                placeholder="luxury mansion, premium stage, private jet runway, yacht deck"
                 className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -1281,7 +1111,7 @@ export default function VideoStudioPage() {
               <textarea
                 value={mustInclude}
                 onChange={(e) => setMustInclude(e.target.value)}
-                placeholder="slow motion, close-up shots, glowing skin, product clarity"
+                placeholder="slow motion, confident speech, elegant movement, luxury details"
                 className="min-h-[90px] w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -1291,7 +1121,7 @@ export default function VideoStudioPage() {
               <textarea
                 value={avoidElements}
                 onChange={(e) => setAvoidElements(e.target.value)}
-                placeholder="text overlays, clutter, bad hands, blurry visuals, cheap background"
+                placeholder="cheap visuals, messy background, blurry faces, bad hands"
                 className="min-h-[90px] w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -1302,7 +1132,7 @@ export default function VideoStudioPage() {
                 <input
                   value={cameraStyle}
                   onChange={(e) => setCameraStyle(e.target.value)}
-                  placeholder="smooth push-in, macro close-up, slow motion"
+                  placeholder="smooth push-in, slow motion, cinematic close-up"
                   className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
                 />
               </div>
@@ -1312,94 +1142,11 @@ export default function VideoStudioPage() {
                 <input
                   value={lightingStyle}
                   onChange={(e) => setLightingStyle(e.target.value)}
-                  placeholder="soft golden light, premium studio highlights"
+                  placeholder="soft golden light, premium highlights, luxury glow"
                   className="w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-cyan-400"
                 />
               </div>
             </div>
-          </div>
-
-          <div className="rounded-[24px] border border-yellow-500/20 bg-black/40 p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-yellow-300/70">
-                  Product Photos
-                </p>
-                <h3 className="mt-2 text-xl font-bold text-yellow-400">
-                  For Generate Product Video only
-                </h3>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => productFileRef.current?.click()}
-                  className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
-                >
-                  Upload Product Photos
-                </button>
-
-                <button
-                  type="button"
-                  onClick={clearProductImages}
-                  disabled={productImages.length === 0}
-                  className="rounded-2xl border border-yellow-400 px-4 py-2 text-sm font-semibold text-yellow-400 transition hover:bg-yellow-400 hover:text-black disabled:opacity-50"
-                >
-                  Clear Photos
-                </button>
-              </div>
-            </div>
-
-            <input
-              ref={productFileRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => handleProductPhotoChange(e.target.files)}
-            />
-
-            <p className="text-sm text-zinc-400">
-              Upload up to 5 product photos. These photos are used only when you click
-              <span className="font-semibold text-yellow-400"> Generate Product Video</span>.
-            </p>
-
-            {productImages.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-                {productImages.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-white/10 bg-zinc-900 p-2"
-                  >
-                    <div className="relative overflow-hidden rounded-xl bg-black">
-                      <img
-                        src={item.preview}
-                        alt={`Product photo ${index + 1}`}
-                        className="h-36 w-full object-cover"
-                      />
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <p className="truncate text-xs text-zinc-400">
-                        {item.file.name}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => removeProductImage(item.id)}
-                        className="rounded-lg border border-red-500/30 px-2 py-1 text-[10px] font-semibold text-red-300 transition hover:bg-red-500/10"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/60 p-5 text-sm text-zinc-500">
-                No product photos uploaded yet.
-              </div>
-            )}
           </div>
 
           <div className="flex flex-wrap gap-4">
@@ -1410,17 +1157,7 @@ export default function VideoStudioPage() {
             >
               {loading && activeTool === "luxury-video"
                 ? "Generating..."
-                : "Generate Motivational Video"}
-            </button>
-
-            <button
-              onClick={() => generateVideo("product-video")}
-              disabled={loading || autoEditLoading || !topic.trim() || usageLoading || userPlan === "free" || totalRemaining <= 0}
-              className="rounded-2xl bg-yellow-400 px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
-            >
-              {loading && activeTool === "product-video"
-                ? "Generating..."
-                : "Generate Product Video"}
+                : "Generate Luxury Video"}
             </button>
 
             <button
@@ -1430,7 +1167,7 @@ export default function VideoStudioPage() {
             >
               {loading && activeTool === "cinematic-video"
                 ? "Generating..."
-                : "Generate AI Cinematic Video"}
+                : "Generate Motivational Speaker Video"}
             </button>
 
             <button
@@ -1454,7 +1191,7 @@ export default function VideoStudioPage() {
               disabled={
                 exportLoading ||
                 autoEditLoading ||
-                (!lumaVideoUrl.trim() && sceneVideos.length === 0)
+                (!lumaVideoUrl.trim() && !previewVideoUrl.trim() && sceneVideos.length === 0)
               }
               className="rounded-2xl bg-yellow-400 px-6 py-3 font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
             >
@@ -1504,15 +1241,16 @@ export default function VideoStudioPage() {
             <VideoPreviewFrame
               caption={
                 shortCaption ||
-                (activeTool === "product-video"
-                  ? "Luxury product video preview"
-                  : "Luxury motivational preview")
+                (activeTool === "cinematic-video"
+                  ? "Motivational speaker video preview"
+                  : "Luxury video preview")
               }
               audioUrl={audioUrl}
               scenes={scenes}
-              sceneVideos={sceneVideos}
               activeTool={activeTool}
               lumaVideoUrl={lumaVideoUrl}
+              lumaStatus={lumaStatus}
+              previewVideoUrl={previewVideoUrl}
             />
           </div>
         </div>
@@ -1528,12 +1266,12 @@ export default function VideoStudioPage() {
         ) : (
           <div className="mt-4 space-y-4">
             <video
+              key={lumaVideoUrl}
+              src={lumaVideoUrl}
               controls
               playsInline
               className="w-full rounded-3xl border border-white/10 bg-black"
-            >
-              <source src={lumaVideoUrl} type="video/mp4" />
-            </video>
+            />
 
             <div className="flex flex-wrap gap-3">
               <a
@@ -1547,7 +1285,7 @@ export default function VideoStudioPage() {
 
               <button
                 onClick={exportVideo}
-                disabled={exportLoading || (!lumaVideoUrl.trim() && sceneVideos.length === 0)}
+                disabled={exportLoading || (!lumaVideoUrl.trim() && !previewVideoUrl.trim() && sceneVideos.length === 0)}
                 className="rounded-2xl bg-yellow-400 px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-50"
               >
                 {exportLoading ? "Downloading..." : "Download MP4"}
