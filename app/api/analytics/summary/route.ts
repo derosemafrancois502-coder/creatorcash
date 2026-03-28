@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
 type MetricKey =
   | "emails"
@@ -75,44 +76,156 @@ const metricConfigs: MetricConfig[] = [
   },
 ]
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+async function getSupabase() {
+  const cookieStore = await cookies()
 
-  if (!url || !key) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url || !anonKey) {
     throw new Error("Missing Supabase environment variables.")
   }
 
-  return createClient(url, key)
+  return createServerClient(url, anonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(_name: string, _value: string, _options: CookieOptions) {
+        // no-op in route handler GET
+      },
+      remove(_name: string, _options: CookieOptions) {
+        // no-op in route handler GET
+      },
+    },
+  })
 }
 
-async function getTableCount(supabase: SupabaseClient, table: string) {
-  const { count, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
+async function getTableCount(
+  supabase: Awaited<ReturnType<typeof getSupabase>>,
+  metric: MetricConfig,
+  userId: string
+) {
+  if (metric.key === "emails") {
+    const { count, error } = await supabase
+      .from("emails")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
 
-  if (error) {
     return {
-      value: null,
-      error: error.message,
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "orders") {
+    const { count, error } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .or(
+        `user_id.eq.${userId},buyer_id.eq.${userId},seller_id.eq.${userId},seller_user_id.eq.${userId}`
+      )
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "products") {
+    const { count, error } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "leads") {
+    const { count, error } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "messages") {
+    const { count, error } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "events") {
+    const { count, error } = await supabase
+      .from("events")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
+    }
+  }
+
+  if (metric.key === "creators") {
+    const { count, error } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("id", userId)
+
+    return {
+      value: count ?? 0,
+      error: error?.message ?? null,
     }
   }
 
   return {
-    value: count ?? 0,
+    value: 0,
     error: null,
   }
 }
 
 export async function GET() {
   try {
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError) {
+      throw new Error(userError.message)
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          metrics: [],
+          hiddenMetrics: [],
+          error: "Unauthorized",
+        },
+        { status: 401 }
+      )
+    }
 
     const results: MetricResult[] = await Promise.all(
       metricConfigs.map(async (metric) => {
-        const result = await getTableCount(supabase, metric.table)
+        const result = await getTableCount(supabase, metric, user.id)
 
         return {
           ...metric,
