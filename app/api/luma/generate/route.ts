@@ -271,7 +271,8 @@ export async function POST(req: Request) {
     const topic = cleanText(body?.topic)
     const language = cleanText(body?.language) || "English"
     const rawMode = cleanText(body?.mode) || "luxury-video"
-    const mode = rawMode === "cinematic-video" ? "cinematic-video" : "luxury-video"
+    const mode =
+      rawMode === "cinematic-video" ? "cinematic-video" : "luxury-video"
 
     const subject = cleanText(body?.subject)
     const visualStyle = cleanText(body?.visualStyle)
@@ -419,6 +420,7 @@ export async function POST(req: Request) {
           error:
             data?.message ||
             data?.error ||
+            data?.detail ||
             "Failed to create Luma generation.",
           details: data,
           payloadSent: lumaPayload,
